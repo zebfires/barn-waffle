@@ -18,9 +18,7 @@ import {
   Sun,
   Moon,
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import ProfileSettings from '@/components/dashboard/ProfileSettings';
 import { useLanguage } from '@/hooks/useLanguage';
 
 const navItems = [
@@ -39,8 +37,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const { theme, setTheme } = useTheme();
-  const { lang, setLang, t } = useLanguage();
+  const { t } = useLanguage();
 
   async function handleSignOut() {
     await signOut();
@@ -94,50 +91,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-sidebar-border space-y-2">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-sidebar-accent/40">
-          <Avatar className="h-8 w-8 flex-shrink-0">
-            <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-              {user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || '?'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-sidebar-foreground truncate leading-tight">
-              {user?.displayName || 'Staff'}
-            </p>
-            <p className="text-[10px] text-muted-foreground truncate">{user?.email}</p>
-          </div>
-        </div>
-        <div className="flex gap-1.5 px-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="justify-start text-sidebar-foreground/80 hover:text-sidebar-foreground text-xs h-8 px-2"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-          </Button>
-          {/* Language toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="flex-1 justify-center text-xs h-8 px-2 font-semibold gap-1"
-            onClick={() => setLang(lang === 'en' ? 'th' : 'en')}
-          >
-            <span className={lang === 'en' ? 'text-primary' : 'text-muted-foreground'}>EN</span>
-            <span className="text-muted-foreground/40">|</span>
-            <span className={lang === 'th' ? 'text-primary' : 'text-muted-foreground'}>TH</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="h-8 w-8 p-0 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-            title={t('sign_out')}
-          >
-            <LogOut className="h-3.5 w-3.5" />
-          </Button>
-        </div>
+      <div className="p-3 border-t border-sidebar-border">
+        <ProfileSettings />
       </div>
     </div>
   );

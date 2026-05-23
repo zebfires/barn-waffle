@@ -5,6 +5,7 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile,
+  updatePassword as firebaseUpdatePassword,
   User,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -45,6 +46,15 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   return firebaseSignOut(auth);
+}
+
+export async function updateDisplayName(user: User, name: string) {
+  await updateProfile(user, { displayName: name });
+  await setDoc(doc(db, 'users', user.uid), { name }, { merge: true });
+}
+
+export async function updateUserPassword(user: User, newPassword: string) {
+  return firebaseUpdatePassword(user, newPassword);
 }
 
 export async function getUserRole(uid: string): Promise<'admin' | 'staff'> {
