@@ -11,6 +11,7 @@ import {
   UtensilsCrossed,
   Package,
   ShoppingCart,
+  Settings,
 } from 'lucide-react';
 import ProfileSettings from '@/components/dashboard/ProfileSettings';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/menu', key: 'nav_menu' as const, icon: UtensilsCrossed },
   { href: '/inventory', key: 'nav_inventory' as const, icon: Package },
   { href: '/orders', key: 'nav_orders' as const, icon: ShoppingCart },
+  { href: '/config', key: 'nav_config' as const, icon: Settings },
 ];
 
 interface SidebarProps {

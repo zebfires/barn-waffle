@@ -94,6 +94,16 @@ export function onInventorySnapshot(callback: (items: InventoryItem[]) => void) 
   });
 }
 
+export async function getAllMenus(): Promise<MenuItem[]> {
+  const snap = await getDocs(collection(db, 'menus'));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data(), createdAt: tsToString(d.data().createdAt) } as MenuItem));
+}
+
+export async function getAllInventory(): Promise<InventoryItem[]> {
+  const snap = await getDocs(collection(db, 'inventory'));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as InventoryItem));
+}
+
 // ── Analytics ─────────────────────────────────────────────────────────────────
 
 export async function upsertAnalytics(date: string, data: Partial<Analytics>) {
