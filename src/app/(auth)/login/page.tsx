@@ -10,8 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
+import { Turnstile } from '@marsidev/react-turnstile';
+import { verifyTurnstile } from '@/actions/verifyTurnstile';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,27 +21,39 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
+    if (!turnstileToken) { toast.error('Please complete the verification'); return; }
     setLoading(true);
     try {
+      const valid = await verifyTurnstile(turnstileToken);
+      if (!valid) { toast.error('Verification failed. Please try again.'); setTurnstileKey(k => k + 1); setTurnstileToken(null); return; }
       await signIn(email, password);
       router.push('/dashboard');
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Sign-in failed');
+      setTurnstileKey(k => k + 1);
+      setTurnstileToken(null);
     } finally {
       setLoading(false);
     }
   }
 
   async function handleGoogle() {
+    if (!turnstileToken) { toast.error('Please complete the verification'); return; }
     setGoogleLoading(true);
     try {
+      const valid = await verifyTurnstile(turnstileToken);
+      if (!valid) { toast.error('Verification failed. Please try again.'); setTurnstileKey(k => k + 1); setTurnstileToken(null); return; }
       await signInWithGoogle();
       router.push('/dashboard');
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Google sign-in failed');
+      setTurnstileKey(k => k + 1);
+      setTurnstileToken(null);
     } finally {
       setGoogleLoading(false);
     }
@@ -97,7 +111,24 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full h-10 font-semibold" disabled={loading}>
+            {/* Turnstile widget */}
+            <div className="flex flex-col items-center gap-2">
+              <Turnstile
+                key={turnstileKey}
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+                onSuccess={setTurnstileToken}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => { toast.error('Verification error, please refresh'); setTurnstileToken(null); }}
+                options={{ theme: 'dark', size: 'flexible' }}
+              />
+              {turnstileToken && (
+                <p className="text-xs text-emerald-500 flex items-center gap-1">
+                  <ShieldCheck className="h-3 w-3" /> Verified
+                </p>
+              )}
+            </div>
+
+            <Button type="submit" className="w-full h-10 font-semibold" disabled={loading || !turnstileToken}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {loading ? 'Signing in…' : 'Sign In'}
             </Button>
