@@ -2,24 +2,19 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { signOut } from '@/firebase/auth';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
 import {
   LayoutDashboard,
   Calculator,
   UtensilsCrossed,
   Package,
   ShoppingCart,
-  LogOut,
-  Sun,
-  Moon,
 } from 'lucide-react';
 import ProfileSettings from '@/components/dashboard/ProfileSettings';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useLowStock } from '@/hooks/useLowStock';
 
 const navItems = [
   { href: '/dashboard', key: 'nav_dashboard' as const, icon: LayoutDashboard },
@@ -35,15 +30,8 @@ interface SidebarProps {
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user } = useAuth();
   const { t } = useLanguage();
-
-  async function handleSignOut() {
-    await signOut();
-    toast.success('Signed out');
-    router.push('/login');
-  }
+  const { totalAlerts, outItems } = useLowStock();
 
   return (
     <div className="flex flex-col h-full bg-sidebar border-r border-sidebar-border">
@@ -81,7 +69,17 @@ export default function Sidebar({ onClose }: SidebarProps) {
               >
                 <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'opacity-100' : 'opacity-70')} />
                 <span className="flex-1">{t(key)}</span>
-                {active && (
+                {href === '/inventory' && totalAlerts > 0 && (
+                  <span className={cn(
+                    'text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none',
+                    outItems.length > 0
+                      ? 'bg-destructive text-destructive-foreground'
+                      : 'bg-amber-500 text-white'
+                  )}>
+                    {totalAlerts}
+                  </span>
+                )}
+                {active && totalAlerts === 0 && (
                   <span className="h-1.5 w-1.5 rounded-full bg-sidebar-primary-foreground opacity-70" />
                 )}
               </motion.div>
