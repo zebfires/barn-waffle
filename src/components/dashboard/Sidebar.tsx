@@ -17,12 +17,15 @@ import ProfileSettings from '@/components/dashboard/ProfileSettings';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useLowStock } from '@/hooks/useLowStock';
 
-const navItems = [
+const mainItems = [
   { href: '/dashboard', key: 'nav_dashboard' as const, icon: LayoutDashboard },
-  { href: '/calculator', key: 'nav_calculator' as const, icon: Calculator },
+  { href: '/orders', key: 'nav_orders' as const, icon: ShoppingCart },
   { href: '/menu', key: 'nav_menu' as const, icon: UtensilsCrossed },
   { href: '/inventory', key: 'nav_inventory' as const, icon: Package },
-  { href: '/orders', key: 'nav_orders' as const, icon: ShoppingCart },
+  { href: '/calculator', key: 'nav_calculator' as const, icon: Calculator },
+];
+
+const toolItems = [
   { href: '/config', key: 'nav_config' as const, icon: Settings },
 ];
 
@@ -55,8 +58,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-1 pb-2">
           {t('nav_main_menu')}
         </p>
-        {navItems.map(({ href, key, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/');
+        {mainItems.map(({ href, key, icon: Icon }) => {
+          const active = pathname === href;
           return (
             <Link key={href} href={href} onClick={onClose}>
               <motion.div
@@ -81,9 +84,35 @@ export default function Sidebar({ onClose }: SidebarProps) {
                     {totalAlerts}
                   </span>
                 )}
-                {active && totalAlerts === 0 && (
+                {active && href !== '/inventory' && (
                   <span className="h-1.5 w-1.5 rounded-full bg-sidebar-primary-foreground opacity-70" />
                 )}
+              </motion.div>
+            </Link>
+          );
+        })}
+
+        <div className="h-px bg-sidebar-border mx-2 my-2" />
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">
+          Tools
+        </p>
+        {toolItems.map(({ href, key, icon: Icon }) => {
+          const active = pathname === href;
+          return (
+            <Link key={href} href={href} onClick={onClose}>
+              <motion.div
+                whileHover={{ x: 3 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                  active
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                )}
+              >
+                <Icon className={cn('h-4 w-4 flex-shrink-0', active ? 'opacity-100' : 'opacity-70')} />
+                <span className="flex-1">{t(key)}</span>
+                {active && <span className="h-1.5 w-1.5 rounded-full bg-sidebar-primary-foreground opacity-70" />}
               </motion.div>
             </Link>
           );
