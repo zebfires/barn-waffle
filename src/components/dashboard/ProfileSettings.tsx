@@ -11,7 +11,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sun, Moon, Globe, LogOut, User, KeyRound, ShieldCheck, Loader2, ChevronUp } from 'lucide-react';
+import Link from 'next/link';
+import { Sun, Moon, Globe, LogOut, User, KeyRound, ShieldCheck, Loader2, ChevronUp, FileJson } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function ProfileSettings() {
@@ -137,6 +138,17 @@ export default function ProfileSettings() {
                 <span className={lang === 'th' ? 'text-primary' : 'text-muted-foreground'}>TH</span>
               </Button>
             </div>
+
+            <div className="h-px bg-border" />
+
+            {/* Config Transfer */}
+            <Link
+              href="/config"
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center gap-1.5 h-8 text-xs font-medium px-2 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <FileJson className="h-3 w-3" /> Config Transfer
+            </Link>
 
             <div className="h-px bg-border" />
 
