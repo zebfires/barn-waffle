@@ -10,10 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2, ShieldCheck, Globe } from 'lucide-react';
 import Image from 'next/image';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { verifyTurnstile } from '@/actions/verifyTurnstile';
+import { useLanguage } from '@/hooks/useLanguage';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileKey, setTurnstileKey] = useState(0);
+  const { t, lang, setLang } = useLanguage();
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +68,20 @@ export default function LoginPage() {
       transition={{ duration: 0.45, ease: 'easeOut' }}
       className="w-full max-w-sm px-4"
     >
+      {/* Language switcher */}
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          onClick={() => setLang(lang === 'en' ? 'th' : 'en')}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-border bg-card hover:bg-accent transition-colors"
+        >
+          <Globe className="h-3 w-3" />
+          <span className={lang === 'en' ? 'text-primary' : 'text-muted-foreground'}>EN</span>
+          <span className="text-muted-foreground/40">|</span>
+          <span className={lang === 'th' ? 'text-primary' : 'text-muted-foreground'}>TH</span>
+        </button>
+      </div>
+
       {/* Brand header */}
       <div className="text-center mb-8">
         <motion.div
@@ -82,13 +98,13 @@ export default function LoginPage() {
 
       <Card className="shadow-2xl border-border/40">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Welcome back</CardTitle>
-          <CardDescription>Sign in to manage your café</CardDescription>
+          <CardTitle className="text-lg">{t('welcome_back')}</CardTitle>
+          <CardDescription>{t('sign_in_subtitle')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <form onSubmit={handleSignIn} className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</Label>
+              <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('email')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -100,7 +116,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Password</Label>
+              <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('password')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -123,14 +139,14 @@ export default function LoginPage() {
               />
               {turnstileToken && (
                 <p className="text-xs text-emerald-500 flex items-center gap-1">
-                  <ShieldCheck className="h-3 w-3" /> Verified
+                  <ShieldCheck className="h-3 w-3" /> {t('verified')}
                 </p>
               )}
             </div>
 
             <Button type="submit" className="w-full h-10 font-semibold" disabled={loading || !turnstileToken}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              {loading ? 'Signing in…' : 'Sign In'}
+              {loading ? t('signing_in') : t('sign_in')}
             </Button>
           </form>
 
@@ -139,7 +155,7 @@ export default function LoginPage() {
               <span className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-card px-3 text-muted-foreground">or continue with</span>
+              <span className="bg-card px-3 text-muted-foreground">{t('or_continue_with')}</span>
             </div>
           </div>
 
@@ -163,15 +179,15 @@ export default function LoginPage() {
           </Button>
         </CardContent>
         <CardFooter className="justify-center text-sm text-muted-foreground pt-0">
-          Don&apos;t have an account?{' '}
+          {t('no_account')}{' '}
           <Link href="/register" className="ml-1 text-primary font-semibold hover:underline underline-offset-2">
-            Register here
+            {t('register_here')}
           </Link>
         </CardFooter>
       </Card>
 
       <p className="text-center text-xs text-muted-foreground/50 mt-6">
-        Barn Waffles · Staff Portal
+        {t('staff_portal')}
       </p>
     </motion.div>
   );
