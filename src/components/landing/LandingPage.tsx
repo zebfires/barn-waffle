@@ -9,10 +9,10 @@ import { ArrowRight, Phone, ChevronDown } from 'lucide-react';
 const ease = [0.16, 1, 0.3, 1] as [number, number, number, number];
 
 const PILLARS = [
-  { emoji: '🌾', th: 'แป้งนุ่ม', en: 'Soft dough' },
-  { emoji: '✨', th: 'วัตถุดิบคุณภาพดี', en: 'Quality ingredients' },
-  { emoji: '🔥', th: 'ทำสดใหม่ทุกออเดอร์', en: 'Fresh every order' },
-  { emoji: '🏠', th: 'อร่อยเหมือนกินที่บ้าน', en: 'Tastes like home' },
+  { th: 'แป้งนุ่ม', en: 'Soft dough' },
+  { th: 'วัตถุดิบคุณภาพดี', en: 'Quality ingredients' },
+  { th: 'ทำสดใหม่ทุกออเดอร์', en: 'Fresh every order' },
+  { th: 'อร่อยเหมือนกินที่บ้าน', en: 'Tastes like home' },
 ];
 
 const MENU_ITEMS = [
@@ -79,7 +79,6 @@ export default function LandingPage() {
             <div className="h-24 w-24 rounded-full overflow-hidden ring-2 ring-[oklch(0.75_0.12_56)]/40 shadow-2xl">
               <Image src="/logo.png" alt="Barn Waffles" width={96} height={96} className="object-cover w-full h-full" />
             </div>
-            <div className="absolute -bottom-1 -right-1 text-2xl">🧇</div>
           </motion.div>
 
           <motion.div
@@ -164,10 +163,9 @@ export default function LandingPage() {
 
             {/* 4 pillars */}
             <div className="grid grid-cols-2 gap-3">
-              {PILLARS.map(({ emoji, th, en }, i) => (
+              {PILLARS.map(({ th, en }, i) => (
                 <FadeUp key={th} delay={0.15 + i * 0.07}>
                   <div className="p-4 rounded-2xl bg-[oklch(0.19_0.028_46)] border border-white/[0.06]">
-                    <span className="text-2xl block mb-2">{emoji}</span>
                     <p className="font-bold text-sm leading-tight">{th}</p>
                     <p className="text-[oklch(0.55_0.03_56)] text-xs mt-0.5">{en}</p>
                   </div>
@@ -207,7 +205,6 @@ export default function LandingPage() {
               <FadeUp key={name} delay={i * 0.07}>
                 <div className="flex items-center justify-between py-4 border-b border-white/[0.06]">
                   <div className="flex items-center gap-3">
-                    <span className="text-xl">🧇</span>
                     <span className="font-semibold text-base">{name}</span>
                     {tag && (
                       <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[oklch(0.75_0.12_56)]/15 text-[oklch(0.75_0.12_56)]">
@@ -229,7 +226,6 @@ export default function LandingPage() {
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] rounded-full bg-[oklch(0.52_0.14_48)] opacity-[0.1] blur-[100px]" />
         </div>
         <FadeUp className="relative z-10 max-w-xl mx-auto space-y-6">
-          <div className="text-6xl">🧇</div>
           <h2 className="text-4xl md:text-5xl font-black tracking-tight">
             Ready to run a<br />smarter shop?
           </h2>
