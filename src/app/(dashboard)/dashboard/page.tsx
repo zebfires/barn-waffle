@@ -3,33 +3,49 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, ShoppingBag, DollarSign, Receipt, Clock, AlertCircle } from 'lucide-react';
+import { TrendingUp, ShoppingBag, DollarSign, Receipt, Clock, AlertCircle, CalendarRange } from 'lucide-react';
 import KpiCard from '@/components/dashboard/KpiCard';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { onOrdersSnapshot } from '@/firebase/firestore';
 import type { Order } from '@/types';
-import { format, subDays, startOfDay, parseISO } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, parseISO, differenceInDays, eachDayOfInterval } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const C = ['oklch(0.75_0.14_52)', 'oklch(0.68_0.11_66)', 'oklch(0.62_0.12_32)', 'oklch(0.78_0.13_56)', 'oklch(0.8_0.09_84)'];
 
 function thb(n: number) { return `฿${n.toLocaleString('th-TH', { maximumFractionDigits: 0 })}`; }
 
-function buildDailySales(orders: Order[], days = 7) {
+type Preset = 'today' | '7d' | '30d' | '90d' | 'custom';
+
+interface Range { from: Date; to: Date; }
+
+function buildDailySeries(orders: Order[], from: Date, to: Date) {
+  const days = eachDayOfInterval({ start: from, end: to });
   const map: Record<string, number> = {};
-  for (let i = days - 1; i >= 0; i--) map[format(subDays(new Date(), i), 'EEE')] = 0;
+  days.forEach((d) => { map[format(d, 'yyyy-MM-dd')] = 0; });
   orders.forEach((o) => {
-    try { const d = format(parseISO(o.createdAt), 'EEE'); if (d in map) map[d] = (map[d] || 0) + o.total; } catch { /* skip */ }
+    try {
+      const key = format(parseISO(o.createdAt), 'yyyy-MM-dd');
+      if (key in map) map[key] = (map[key] || 0) + o.total;
+    } catch { /* skip */ }
   });
-  return Object.entries(map).map(([date, sales]) => ({ date, sales }));
+  const span = differenceInDays(to, from);
+  const labelFmt = span <= 14 ? 'd MMM' : span <= 60 ? 'dd/MM' : 'MMM yy';
+  return Object.entries(map).map(([date, sales]) => ({
+    date: format(parseISO(date), labelFmt),
+    sales,
+  }));
 }
 
 function buildHourly(orders: Order[]) {
   const map: Record<number, number> = {};
   orders.forEach((o) => { try { const h = parseISO(o.createdAt).getHours(); map[h] = (map[h] || 0) + 1; } catch { /* skip */ } });
-  return Object.entries(map).filter(([, v]) => v > 0).map(([h, orders]) => ({ hour: `${h}h`, orders }));
+  return Object.entries(map).filter(([, v]) => v > 0)
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([h, orders]) => ({ hour: `${h}h`, orders }));
 }
 
 function buildPaymentSplit(orders: Order[]) {
@@ -38,31 +54,68 @@ function buildPaymentSplit(orders: Order[]) {
   return Object.entries(map).map(([name, value]) => ({ name: name.toUpperCase(), value }));
 }
 
+function toDateInput(d: Date) { return format(d, 'yyyy-MM-dd'); }
+
+const PRESETS: { key: Preset; label: string }[] = [
+  { key: 'today', label: 'Today' },
+  { key: '7d',    label: '7 days' },
+  { key: '30d',   label: '30 days' },
+  { key: '90d',   label: '90 days' },
+  { key: 'custom', label: 'Custom' },
+];
+
+function rangeFor(preset: Preset, customFrom?: Date, customTo?: Date): Range {
+  const now = new Date();
+  if (preset === 'today')  return { from: startOfDay(now), to: endOfDay(now) };
+  if (preset === '7d')     return { from: startOfDay(subDays(now, 6)), to: endOfDay(now) };
+  if (preset === '30d')    return { from: startOfDay(subDays(now, 29)), to: endOfDay(now) };
+  if (preset === '90d')    return { from: startOfDay(subDays(now, 89)), to: endOfDay(now) };
+  return { from: customFrom ?? startOfDay(subDays(now, 6)), to: customTo ?? endOfDay(now) };
+}
+
 export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [preset, setPreset] = useState<Preset>('7d');
+  const [customFrom, setCustomFrom] = useState<Date>(startOfDay(subDays(new Date(), 6)));
+  const [customTo, setCustomTo]     = useState<Date>(endOfDay(new Date()));
+  const [showCustom, setShowCustom] = useState(false);
 
   useEffect(() => { const u = onOrdersSnapshot((d) => { setOrders(d); setLoading(false); }); return u; }, []);
 
-  const today = startOfDay(new Date()).toISOString();
+  const range = useMemo(() => rangeFor(preset, customFrom, customTo), [preset, customFrom, customTo]);
 
-  const dailySales = useMemo(() => orders.filter((o) => o.createdAt >= today).reduce((s, o) => s + o.total, 0), [orders, today]);
-  const weeklyOrders = useMemo(() => orders.filter((o) => o.createdAt >= subDays(new Date(), 7).toISOString()), [orders]);
-  const weeklySales = useMemo(() => weeklyOrders.reduce((s, o) => s + o.total, 0), [weeklyOrders]);
-  const monthlySales = useMemo(() => orders.filter((o) => o.createdAt >= subDays(new Date(), 30).toISOString()).reduce((s, o) => s + o.total, 0), [orders]);
-  const avgOrder = useMemo(() => (weeklyOrders.length ? weeklySales / weeklyOrders.length : 0), [weeklySales, weeklyOrders]);
+  const rangeOrders = useMemo(() =>
+    orders.filter((o) => {
+      try { const d = parseISO(o.createdAt); return d >= range.from && d <= range.to; } catch { return false; }
+    }),
+    [orders, range]
+  );
+
+  const totalSales   = useMemo(() => rangeOrders.reduce((s, o) => s + o.total, 0), [rangeOrders]);
+  const avgOrder     = useMemo(() => rangeOrders.length ? totalSales / rangeOrders.length : 0, [totalSales, rangeOrders]);
+  const todaySales   = useMemo(() => {
+    const s = startOfDay(new Date()).toISOString();
+    const e = endOfDay(new Date()).toISOString();
+    return orders.filter((o) => o.createdAt >= s && o.createdAt <= e).reduce((acc, o) => acc + o.total, 0);
+  }, [orders]);
 
   const itemCounts = useMemo(() => {
     const map: Record<string, number> = {};
-    orders.forEach((o) => o.items.forEach((item) => { map[item.name] = (map[item.name] || 0) + item.quantity; }));
+    rangeOrders.forEach((o) => o.items.forEach((item) => { map[item.name] = (map[item.name] || 0) + item.quantity; }));
     return map;
-  }, [orders]);
+  }, [rangeOrders]);
 
-  const topItems = useMemo(() => Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 5), [itemCounts]);
-  const dailyData = useMemo(() => buildDailySales(orders), [orders]);
-  const hourlyData = useMemo(() => buildHourly(orders), [orders]);
-  const paymentData = useMemo(() => buildPaymentSplit(orders), [orders]);
-  const peakHour = useMemo(() => hourlyData.length ? [...hourlyData].sort((a, b) => b.orders - a.orders)[0].hour : null, [hourlyData]);
+  const topItems   = useMemo(() => Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 5), [itemCounts]);
+  const dailyData  = useMemo(() => buildDailySeries(rangeOrders, range.from, range.to), [rangeOrders, range]);
+  const hourlyData = useMemo(() => buildHourly(rangeOrders), [rangeOrders]);
+  const paymentData = useMemo(() => buildPaymentSplit(rangeOrders), [rangeOrders]);
+  const peakHour   = useMemo(() => hourlyData.length ? [...hourlyData].sort((a, b) => b.orders - a.orders)[0].hour : null, [hourlyData]);
+
+  const rangeLabel = useMemo(() => {
+    if (preset !== 'custom') return '';
+    return `${format(range.from, 'd MMM yyyy')} – ${format(range.to, 'd MMM yyyy')}`;
+  }, [preset, range]);
 
   if (loading) {
     return (
@@ -78,35 +131,91 @@ export default function DashboardPage() {
   const fade = (delay: number) => ({ initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay, ease: [0, 0, 0.2, 1] as [number,number,number,number] } });
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
 
-      {/* Page header */}
-      <motion.div {...fade(0)}>
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">
-          {format(new Date(), 'EEEE, d MMMM yyyy')}
-        </p>
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+      {/* Page header + date range picker */}
+      <motion.div {...fade(0)} className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+            {format(new Date(), 'EEEE, d MMMM yyyy')}
+          </p>
+          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+        </div>
+
+        {/* Preset pills + custom picker */}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            {PRESETS.map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setPreset(key);
+                  setShowCustom(key === 'custom');
+                }}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-150',
+                  preset === key
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {key === 'custom' ? <span className="flex items-center gap-1"><CalendarRange className="h-3 w-3" />{label}</span> : label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom date inputs */}
+          {showCustom && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2"
+            >
+              <input
+                type="date"
+                value={toDateInput(customFrom)}
+                max={toDateInput(customTo)}
+                onChange={(e) => setCustomFrom(startOfDay(new Date(e.target.value)))}
+                className="text-xs bg-transparent outline-none text-foreground"
+              />
+              <span className="text-muted-foreground text-xs">→</span>
+              <input
+                type="date"
+                value={toDateInput(customTo)}
+                min={toDateInput(customFrom)}
+                max={toDateInput(new Date())}
+                onChange={(e) => setCustomTo(endOfDay(new Date(e.target.value)))}
+                className="text-xs bg-transparent outline-none text-foreground"
+              />
+            </motion.div>
+          )}
+          {preset !== 'today' && (
+            <p className="text-[10px] text-muted-foreground">
+              {preset === 'custom' ? rangeLabel : `${format(range.from, 'd MMM')} – ${format(range.to, 'd MMM yyyy')}`}
+            </p>
+          )}
+        </div>
       </motion.div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard title="Today" value={thb(dailySales)} icon={DollarSign} color="brown" delay={0.05} />
-        <KpiCard title="This Week" value={thb(weeklySales)} icon={TrendingUp} color="green" delay={0.1} />
-        <KpiCard title="This Month" value={thb(monthlySales)} icon={Receipt} color="amber" delay={0.15} />
-        <KpiCard title="Avg Order" value={thb(avgOrder)} subtitle="7-day avg" icon={ShoppingBag} color="blue" delay={0.2} />
+        <KpiCard title="Today" value={thb(todaySales)} icon={DollarSign} color="brown" delay={0.05} />
+        <KpiCard title="Range Total" value={thb(totalSales)} icon={TrendingUp} color="green" delay={0.1} />
+        <KpiCard title="Orders" value={rangeOrders.length.toString()} icon={Receipt} color="amber" delay={0.15} />
+        <KpiCard title="Avg Order" value={thb(avgOrder)} icon={ShoppingBag} color="blue" delay={0.2} />
       </div>
 
       {/* Insight strip */}
       <motion.div {...fade(0.25)} className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border rounded-xl overflow-hidden border border-border">
         <div className="bg-card px-5 py-4">
-          <p className="text-xs text-muted-foreground mb-1">Total orders</p>
-          <p className="text-2xl font-bold">{orders.length}</p>
-          <p className="text-xs text-muted-foreground mt-1">{weeklyOrders.length} this week</p>
+          <p className="text-xs text-muted-foreground mb-1">Orders in range</p>
+          <p className="text-2xl font-bold">{rangeOrders.length}</p>
+          <p className="text-xs text-muted-foreground mt-1">{orders.length} total all-time</p>
         </div>
         <div className="bg-card px-5 py-4">
           <p className="text-xs text-muted-foreground mb-1">Best seller</p>
           <p className="text-2xl font-bold truncate">{topItems[0]?.[0] ?? '—'}</p>
-          <p className="text-xs text-muted-foreground mt-1">{topItems[0]?.[1] ?? 0} sold total</p>
+          <p className="text-xs text-muted-foreground mt-1">{topItems[0]?.[1] ?? 0} sold in range</p>
         </div>
         <div className="bg-card px-5 py-4">
           <p className="text-xs text-muted-foreground mb-1">Peak hour</p>
@@ -120,13 +229,16 @@ export default function DashboardPage() {
         <motion.div {...fade(0.3)} className="lg:col-span-2">
           <Card>
             <CardHeader className="pb-0 pt-5 px-6">
-              <CardTitle className="text-sm font-semibold">Revenue — last 7 days</CardTitle>
+              <CardTitle className="text-sm font-semibold">Revenue by day</CardTitle>
+              <CardDescription className="text-xs">
+                {format(range.from, 'd MMM')} – {format(range.to, 'd MMM yyyy')}
+              </CardDescription>
             </CardHeader>
             <CardContent className="px-2 pt-4 pb-3">
               <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={dailyData} barSize={28}>
+                <BarChart data={dailyData} barSize={Math.max(4, Math.min(28, Math.floor(600 / dailyData.length)))}>
                   <CartesianGrid vertical={false} stroke="currentColor" opacity={0.07} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'currentColor', opacity: 0.5 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'currentColor', opacity: 0.5 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                   <YAxis tick={{ fontSize: 11, fill: 'currentColor', opacity: 0.5 }} axisLine={false} tickLine={false} tickFormatter={(v) => `฿${v}`} width={52} />
                   <Tooltip
                     cursor={{ fill: 'currentColor', opacity: 0.05 }}
@@ -150,7 +262,7 @@ export default function DashboardPage() {
               {paymentData.length > 0 ? (
                 <div className="space-y-2.5">
                   {paymentData.map((p, i) => {
-                    const pct = Math.round((p.value / orders.length) * 100);
+                    const pct = Math.round((p.value / rangeOrders.length) * 100);
                     return (
                       <div key={p.name}>
                         <div className="flex justify-between text-xs mb-1">
@@ -228,21 +340,21 @@ export default function DashboardPage() {
 
         <motion.div {...fade(0.45)} className="lg:col-span-3">
           <Card className="h-full">
-            <CardHeader className="pb-0 pt-5 px-6 flex flex-row items-center justify-between">
+            <CardHeader className="pb-0 pt-5 px-6">
               <div>
                 <CardTitle className="text-sm font-semibold">Recent orders</CardTitle>
-                <CardDescription className="text-xs">{Math.min(orders.length, 6)} latest transactions</CardDescription>
+                <CardDescription className="text-xs">{Math.min(rangeOrders.length, 6)} latest in range</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="px-6 pt-4 pb-4">
-              {orders.length === 0 ? (
+              {rangeOrders.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
                   <ShoppingBag className="h-7 w-7 mb-2 opacity-30" />
-                  <p className="text-xs">No orders yet</p>
+                  <p className="text-xs">No orders in this range</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {orders.slice(0, 6).map((o) => (
+                  {rangeOrders.slice(0, 6).map((o) => (
                     <div key={o.id} className="flex items-center justify-between py-2.5 gap-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{o.items.map((i) => i.name).join(', ')}</p>
