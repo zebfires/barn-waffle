@@ -9,7 +9,7 @@ export function usePromptPay() {
 
   useEffect(() => {
     getShopConfig().then((cfg) => {
-      setPromptPayId(cfg.promptPayId ?? '');
+      setPromptPayId(cfg.promptPayId ?? '1250101737196');
       setLoading(false);
     });
   }, []);
