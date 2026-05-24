@@ -6,6 +6,7 @@ import {
   deleteDoc,
   getDocs,
   getDoc,
+  setDoc,
   onSnapshot,
   query,
   orderBy,
@@ -92,6 +93,21 @@ export function onInventorySnapshot(callback: (items: InventoryItem[]) => void) 
   return onSnapshot(collection(db, 'inventory'), (snap) => {
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as InventoryItem)));
   });
+}
+
+// ── Shop Config ───────────────────────────────────────────────────────────────
+
+export interface ShopConfig {
+  promptPayId?: string; // phone number or national ID
+}
+
+export async function getShopConfig(): Promise<ShopConfig> {
+  const snap = await getDoc(doc(db, 'config', 'shop'));
+  return snap.exists() ? (snap.data() as ShopConfig) : {};
+}
+
+export async function setShopConfig(data: Partial<ShopConfig>) {
+  return setDoc(doc(db, 'config', 'shop'), data, { merge: true });
 }
 
 export async function getAllMenus(): Promise<MenuItem[]> {

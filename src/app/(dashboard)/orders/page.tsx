@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Plus, Minus, Trash2, Receipt, QrCode, Banknote, X, ClipboardList, Filter, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Receipt, QrCode, Banknote, X, ClipboardList, Filter, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import generatePayload from 'promptpay-qr';
+import { usePromptPay } from '@/hooks/usePromptPay';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +38,7 @@ export default function OrdersPage() {
   const [clearing, setClearing] = useState(false);
   const [cashReceived, setCashReceived] = useState<number | ''>('');
   const receiptRef = useRef<HTMLDivElement>(null);
+  const { promptPayId } = usePromptPay();
 
   useEffect(() => {
     const u1 = onMenusSnapshot(setMenus);
@@ -476,23 +480,48 @@ export default function OrdersPage() {
 
       {/* QR Payment Dialog */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent className="max-w-sm text-center">
+        <DialogContent className="max-w-xs text-center">
           <DialogHeader>
-            <DialogTitle>QR Payment</DialogTitle>
+            <DialogTitle className="flex items-center justify-center gap-2">
+              <QrCode className="h-4 w-4" /> PromptPay
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="text-3xl font-bold text-primary">฿{cartTotal}</div>
-            <div className="bg-muted rounded-xl p-6 flex items-center justify-center">
-              <div className="relative">
-                <QrCode className="h-32 w-32 text-foreground" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl">🧇</span>
-                </div>
+            <div className="text-4xl font-bold text-primary">฿{cartTotal.toLocaleString()}</div>
+
+            {promptPayId ? (
+              <div className="bg-white rounded-2xl p-4 flex items-center justify-center mx-auto w-fit shadow-sm">
+                <QRCodeSVG
+                  value={generatePayload(promptPayId, { amount: cartTotal })}
+                  size={200}
+                  bgColor="#ffffff"
+                  fgColor="#1a1a1a"
+                  level="M"
+                  imageSettings={{
+                    src: '/logo.png',
+                    height: 36,
+                    width: 36,
+                    excavate: true,
+                  }}
+                />
               </div>
-            </div>
-            <p className="text-sm text-muted-foreground">Show this QR code to the customer.<br />Confirm once payment is received.</p>
-            <Button className="w-full" onClick={placeOrder} disabled={submitting}>
-              {submitting ? 'Processing...' : 'Confirm Payment Received'}
+            ) : (
+              <div className="bg-muted rounded-xl p-8 flex flex-col items-center gap-2 text-muted-foreground">
+                <QrCode className="h-10 w-10 opacity-30" />
+                <p className="text-xs">No PromptPay ID set.<br />Go to profile settings to add one.</p>
+              </div>
+            )}
+
+            {promptPayId && (
+              <p className="text-xs text-muted-foreground">ID: {promptPayId}</p>
+            )}
+
+            <p className="text-sm text-muted-foreground">Show this QR to the customer.<br />Confirm once payment is received.</p>
+
+            <Button className="w-full gap-2" onClick={placeOrder} disabled={submitting}>
+              {submitting
+                ? <><Receipt className="h-4 w-4 animate-spin" /> Processing…</>
+                : <><CheckCircle2 className="h-4 w-4" /> Confirm Payment Received</>}
             </Button>
           </div>
         </DialogContent>
