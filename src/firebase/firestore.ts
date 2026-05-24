@@ -95,6 +95,25 @@ export function onInventorySnapshot(callback: (items: InventoryItem[]) => void) 
   });
 }
 
+// ── Auth Logs ────────────────────────────────────────────────────────────────
+
+export async function logAuthEvent(uid: string, email: string, action: 'login' | 'register' | 'google') {
+  try {
+    const res = await fetch('https://api.ipify.org?format=json');
+    const { ip } = await res.json() as { ip: string };
+    await addDoc(collection(db, 'logs'), {
+      uid,
+      email,
+      action,
+      ip,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      createdAt: serverTimestamp(),
+    });
+  } catch {
+    // silently ignore — logging should never break auth flow
+  }
+}
+
 // ── Shop Config ───────────────────────────────────────────────────────────────
 
 export interface ShopConfig {

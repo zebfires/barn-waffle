@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { signUp } from '@/firebase/auth';
+import { logAuthEvent } from '@/firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,7 +35,8 @@ export default function RegisterPage() {
     try {
       const valid = await verifyTurnstile(turnstileToken);
       if (!valid) { toast.error('Verification failed. Please try again.'); setTurnstileKey(k => k + 1); setTurnstileToken(null); return; }
-      await signUp(email, password, name);
+      const cred = await signUp(email, password, name);
+      logAuthEvent(cred.user.uid, email, 'register');
       toast.success('Account created!');
       router.push('/dashboard');
     } catch (err: unknown) {

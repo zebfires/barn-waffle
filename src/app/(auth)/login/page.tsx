@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { signIn, signInWithGoogle } from '@/firebase/auth';
+import { logAuthEvent } from '@/firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +34,8 @@ export default function LoginPage() {
     try {
       const valid = await verifyTurnstile(turnstileToken);
       if (!valid) { toast.error('Verification failed. Please try again.'); setTurnstileKey(k => k + 1); setTurnstileToken(null); return; }
-      await signIn(email, password);
+      const cred = await signIn(email, password);
+      logAuthEvent(cred.user.uid, cred.user.email ?? email, 'login');
       router.push('/dashboard');
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Sign-in failed');
@@ -50,7 +52,8 @@ export default function LoginPage() {
     try {
       const valid = await verifyTurnstile(turnstileToken);
       if (!valid) { toast.error('Verification failed. Please try again.'); setTurnstileKey(k => k + 1); setTurnstileToken(null); return; }
-      await signInWithGoogle();
+      const cred = await signInWithGoogle();
+      logAuthEvent(cred.user.uid, cred.user.email ?? '', 'google');
       router.push('/dashboard');
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Google sign-in failed');
