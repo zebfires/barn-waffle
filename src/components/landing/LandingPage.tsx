@@ -4,31 +4,15 @@ import { useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, LayoutDashboard, QrCode, Package, TrendingUp, ChevronDown } from 'lucide-react';
+import { ArrowRight, Phone, ChevronDown } from 'lucide-react';
 
 const ease = [0.16, 1, 0.3, 1] as [number, number, number, number];
 
-const FEATURES = [
-  {
-    icon: LayoutDashboard,
-    title: 'Smart Dashboard',
-    desc: 'Live sales charts, revenue KPIs, and custom date ranges — everything at a glance.',
-  },
-  {
-    icon: QrCode,
-    title: 'PromptPay QR',
-    desc: 'Auto-generates a QR with the exact order amount. Customer scans, pays, done.',
-  },
-  {
-    icon: Package,
-    title: 'Inventory Alerts',
-    desc: 'Low-stock and out-of-stock warnings before you run out mid-service.',
-  },
-  {
-    icon: TrendingUp,
-    title: 'Sales Analytics',
-    desc: 'Best-sellers, peak hours, payment splits. Know your shop without a spreadsheet.',
-  },
+const PILLARS = [
+  { emoji: '🌾', th: 'แป้งนุ่ม', en: 'Soft dough' },
+  { emoji: '✨', th: 'วัตถุดิบคุณภาพดี', en: 'Quality ingredients' },
+  { emoji: '🔥', th: 'ทำสดใหม่ทุกออเดอร์', en: 'Fresh every order' },
+  { emoji: '🏠', th: 'อร่อยเหมือนกินที่บ้าน', en: 'Tastes like home' },
 ];
 
 const MENU_ITEMS = [
@@ -147,26 +131,65 @@ export default function LandingPage() {
         </motion.div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-28 px-6">
-        <div className="max-w-5xl mx-auto">
-          <FadeUp className="text-center mb-16">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[oklch(0.75_0.12_56)] mb-3">Everything you need</p>
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight">Built for your shop</h2>
+      {/* Promo photo + brand pillars */}
+      <section id="features" className="py-20 px-6">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+
+          {/* Promo image */}
+          <FadeUp>
+            <div className="relative rounded-3xl overflow-hidden shadow-2xl ring-1 ring-white/[0.06] mx-auto max-w-sm lg:max-w-full">
+              <Image
+                src="/promo.jpg"
+                alt="บ้าน Waffle — แป้งนุ่ม อร่อยทุกค่ำ ทำสดใหม่ทุกวัน"
+                width={540}
+                height={960}
+                className="w-full h-auto object-cover"
+                priority
+              />
+            </div>
           </FadeUp>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {FEATURES.map(({ icon: Icon, title, desc }, i) => (
-              <FadeUp key={title} delay={i * 0.08}>
-                <div className="group p-6 rounded-2xl bg-[oklch(0.19_0.028_46)] border border-white/[0.06] hover:border-[oklch(0.75_0.12_56)]/30 transition-all duration-300 hover:bg-[oklch(0.21_0.03_46)]">
-                  <div className="h-10 w-10 rounded-xl bg-[oklch(0.75_0.12_56)]/10 flex items-center justify-center mb-4 group-hover:bg-[oklch(0.75_0.12_56)]/20 transition-colors">
-                    <Icon className="h-5 w-5 text-[oklch(0.75_0.12_56)]" />
+          {/* Brand info */}
+          <div className="space-y-8">
+            <FadeUp delay={0.1}>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[oklch(0.75_0.12_56)] mb-2">บ้าน Waffle</p>
+              <h2 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">
+                อร่อยทุกค่ำ<br />
+                <span className="text-[oklch(0.75_0.12_56)]">ทำสดใหม่ทุกวัน</span>
+              </h2>
+              <p className="text-[oklch(0.62_0.038_58)] mt-3 text-base leading-relaxed">
+                ความอร่อย ที่อบอุ่นเหมือนบ้าน — Homemade flavour, baked fresh for every order.
+              </p>
+            </FadeUp>
+
+            {/* 4 pillars */}
+            <div className="grid grid-cols-2 gap-3">
+              {PILLARS.map(({ emoji, th, en }, i) => (
+                <FadeUp key={th} delay={0.15 + i * 0.07}>
+                  <div className="p-4 rounded-2xl bg-[oklch(0.19_0.028_46)] border border-white/[0.06]">
+                    <span className="text-2xl block mb-2">{emoji}</span>
+                    <p className="font-bold text-sm leading-tight">{th}</p>
+                    <p className="text-[oklch(0.55_0.03_56)] text-xs mt-0.5">{en}</p>
                   </div>
-                  <h3 className="font-bold text-base mb-1.5">{title}</h3>
-                  <p className="text-sm text-[oklch(0.62_0.038_58)] leading-relaxed">{desc}</p>
-                </div>
-              </FadeUp>
-            ))}
+                </FadeUp>
+              ))}
+            </div>
+
+            {/* Phone CTA */}
+            <FadeUp delay={0.45}>
+              <a
+                href="tel:0949969853"
+                className="inline-flex items-center gap-3 px-6 py-3.5 rounded-full bg-[oklch(0.19_0.028_46)] border border-white/[0.08] hover:border-[oklch(0.75_0.12_56)]/40 transition-all group"
+              >
+                <span className="h-8 w-8 rounded-full bg-[oklch(0.75_0.12_56)]/10 flex items-center justify-center group-hover:bg-[oklch(0.75_0.12_56)]/20 transition-colors">
+                  <Phone className="h-4 w-4 text-[oklch(0.75_0.12_56)]" />
+                </span>
+                <span>
+                  <span className="block text-[10px] uppercase tracking-widest text-[oklch(0.55_0.03_56)] font-semibold">โทรสั่ง / Call us</span>
+                  <span className="block font-black text-lg tracking-wide">094-996-9853</span>
+                </span>
+              </a>
+            </FadeUp>
           </div>
         </div>
       </section>
@@ -175,14 +198,14 @@ export default function LandingPage() {
       <section className="py-24 px-6 bg-[oklch(0.17_0.026_46)]">
         <div className="max-w-4xl mx-auto">
           <FadeUp className="mb-12">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[oklch(0.75_0.12_56)] mb-3">Sample menu</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[oklch(0.75_0.12_56)] mb-3">เมนู / Menu</p>
             <h2 className="text-4xl md:text-5xl font-black tracking-tight">Warm, crispy,<br />made to order.</h2>
           </FadeUp>
 
           <div className="space-y-3">
             {MENU_ITEMS.map(({ name, price, tag }, i) => (
               <FadeUp key={name} delay={i * 0.07}>
-                <div className="flex items-center justify-between py-4 border-b border-white/[0.06] group">
+                <div className="flex items-center justify-between py-4 border-b border-white/[0.06]">
                   <div className="flex items-center gap-3">
                     <span className="text-xl">🧇</span>
                     <span className="font-semibold text-base">{name}</span>
