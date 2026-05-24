@@ -79,7 +79,6 @@ export default function DashboardPage() {
   const [preset, setPreset] = useState<Preset>('7d');
   const [customFrom, setCustomFrom] = useState<Date>(startOfDay(subDays(new Date(), 6)));
   const [customTo, setCustomTo]     = useState<Date>(endOfDay(new Date()));
-  const [showCustom, setShowCustom] = useState(false);
 
   useEffect(() => { const u = onOrdersSnapshot((d) => { setOrders(d); setLoading(false); }); return u; }, []);
 
@@ -148,10 +147,7 @@ export default function DashboardPage() {
             {PRESETS.map(({ key, label }) => (
               <button
                 key={key}
-                onClick={() => {
-                  setPreset(key);
-                  setShowCustom(key === 'custom');
-                }}
+                onClick={() => setPreset(key)}
                 className={cn(
                   'px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-150',
                   preset === key
@@ -165,7 +161,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Custom date inputs */}
-          {showCustom && (
+          {preset === 'custom' && (
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
