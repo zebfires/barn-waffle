@@ -172,6 +172,25 @@
   }
 }
 
+@keyframes shimmer-sweep {
+  0%   { transform: translateX(-150%) skewX(-12deg); }
+  100% { transform: translateX(250%) skewX(-12deg); }
+}
+
+@layer utilities {
+  .shimmer-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 22%) 50%, transparent 100%);
+    transform: translateX(-150%) skewX(-12deg);
+    pointer-events: none;
+  }
+  .shimmer-btn:hover::after {
+    animation: shimmer-sweep 0.8s ease-in-out infinite;
+  }
+}
+
 @layer utilities {
   .glass {
     background: oklch(1 0 0 / 6%);

@@ -199,13 +199,8 @@ export default function LandingPage() {
           >
             <Link
               href="/login"
-              className="relative overflow-hidden flex items-center gap-2 px-6 py-3 rounded-full bg-[oklch(0.75_0.12_56)] text-[oklch(0.14_0.022_45)] font-bold text-sm hover:bg-[oklch(0.8_0.13_56)] transition-all hover:scale-105 active:scale-95 group"
+              className="shimmer-btn relative overflow-hidden flex items-center gap-2 px-6 py-3 rounded-full bg-[oklch(0.75_0.12_56)] text-[oklch(0.14_0.022_45)] font-bold text-sm hover:bg-[oklch(0.8_0.13_56)] transition-all hover:scale-105 active:scale-95"
             >
-              <motion.span
-                className="absolute inset-0 bg-white/20 -skew-x-12 -translate-x-full"
-                animate={{ translateX: ['calc(-100% - 100px)', 'calc(100% + 100px)'] }}
-                transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 3, ease: 'easeInOut' }}
-              />
               Open Dashboard <ArrowRight className="h-4 w-4" />
             </Link>
             <a
@@ -366,13 +361,8 @@ export default function LandingPage() {
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
             <Link
               href="/login"
-              className="relative overflow-hidden inline-flex items-center gap-2 px-8 py-4 rounded-full bg-[oklch(0.75_0.12_56)] text-[oklch(0.14_0.022_45)] font-bold text-base hover:bg-[oklch(0.8_0.13_56)] transition-colors shadow-xl shadow-[oklch(0.52_0.14_48)]/20"
+              className="shimmer-btn relative overflow-hidden inline-flex items-center gap-2 px-8 py-4 rounded-full bg-[oklch(0.75_0.12_56)] text-[oklch(0.14_0.022_45)] font-bold text-base hover:bg-[oklch(0.8_0.13_56)] transition-colors shadow-xl shadow-[oklch(0.52_0.14_48)]/20"
             >
-              <motion.span
-                className="absolute inset-0 bg-white/20 -skew-x-12 -translate-x-full"
-                animate={{ translateX: ['calc(-100% - 100px)', 'calc(100% + 100px)'] }}
-                transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }}
-              />
               Go to Dashboard <ArrowRight className="h-4 w-4" />
             </Link>
           </motion.div>
