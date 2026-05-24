@@ -176,16 +176,14 @@ export default function DashboardPage() {
                 value={toDateInput(customFrom)}
                 max={toDateInput(customTo)}
                 onChange={(e) => setCustomFrom(startOfDay(new Date(e.target.value)))}
-                className="text-xs bg-transparent outline-none text-foreground"
               />
-              <span className="text-muted-foreground text-xs">→</span>
+              <span className="text-muted-foreground text-xs font-medium">→</span>
               <input
                 type="date"
                 value={toDateInput(customTo)}
                 min={toDateInput(customFrom)}
                 max={toDateInput(new Date())}
                 onChange={(e) => setCustomTo(endOfDay(new Date(e.target.value)))}
-                className="text-xs bg-transparent outline-none text-foreground"
               />
             </motion.div>
           )}
