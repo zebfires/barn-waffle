@@ -155,29 +155,26 @@ export default function ProfileSettings() {
               </Button>
             </div>
 
-            {/* PromptPay ID — admin only */}
-            {role === 'admin' && (
-              <>
-                <div className="h-px bg-border" />
-                <div className="space-y-1.5">
-                  <Label className="text-xs flex items-center gap-1.5 text-muted-foreground">
-                    <QrCode className="h-3 w-3" /> PromptPay ID
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={promptPayVal}
-                      onChange={(e) => setPromptPayVal(e.target.value)}
-                      className="h-8 text-sm flex-1"
-                      placeholder="Phone or National ID"
-                    />
-                    <Button size="sm" className="h-8 px-3" onClick={handleSavePromptPay} disabled={savingPP}>
-                      {savingPP ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
-                    </Button>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">Used to generate PromptPay QR on orders</p>
-                </div>
-              </>
-            )}
+            {/* PromptPay ID — available to all users */}
+            <div className="h-px bg-border" />
+            <div className="space-y-1.5">
+              <Label className="text-xs flex items-center gap-1.5 text-muted-foreground">
+                <QrCode className="h-3 w-3" /> PromptPay ID
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  value={promptPayVal}
+                  onChange={(e) => setPromptPayVal(e.target.value)}
+                  className="h-8 text-sm flex-1"
+                  placeholder="Phone or National ID"
+                />
+                <Button size="sm" className="h-8 px-3" onClick={handleSavePromptPay} disabled={savingPP}>
+                  {savingPP ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                </Button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Used to generate PromptPay QR on orders</p>
+            </div>
+
 
             <div className="h-px bg-border" />
 
