@@ -5,6 +5,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { motion, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion';
 import { ArrowRight, Phone, ChevronDown } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const Waffle3D = dynamic(() => import('./Waffle3D'), { ssr: false });
 
 const ease = [0.16, 1, 0.3, 1] as [number, number, number, number];
 
@@ -117,6 +120,9 @@ export default function LandingPage() {
       {/* Hero */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-6 overflow-hidden pt-20">
 
+        {/* 3D Waffle Background */}
+        <Waffle3D />
+
         {/* Animated gradient mesh background */}
         <div className="absolute inset-0 pointer-events-none">
           <motion.div
@@ -138,32 +144,9 @@ export default function LandingPage() {
             transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
           />
         </div>
-
-        {/* Floating waffle emojis */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(8)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute text-4xl md:text-5xl opacity-10"
               style={{ 
                 left: `${10 + i * 12}%`, 
                 top: `${20 + (i % 3) * 25}%`,
-              }}
-              animate={{ 
-                y: [0, -30, 0],
-                rotate: [0, 10, -10, 0],
-                opacity: [0.05, 0.15, 0.05]
-              }}
-              transition={{ 
-                duration: 8 + i * 0.8, 
-                repeat: Infinity, 
-                ease: 'easeInOut',
-                delay: i * 0.5
-              }}
-            >
-              🧇
-            </motion.div>
-          ))}
         </div>
 
         <motion.div 
