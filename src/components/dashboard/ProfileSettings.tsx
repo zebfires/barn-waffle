@@ -72,13 +72,29 @@ export default function ProfileSettings() {
   }
 
   async function handleSavePromptPay() {
-    if (!promptPayVal.trim()) return;
+    if (!promptPayVal.trim()) {
+      toast.error('Please enter a PromptPay ID');
+      return;
+    }
     setSavingPP(true);
     try {
       await savePromptPayId(promptPayVal);
-      toast.success('PromptPay ID saved');
-    } catch { toast.error('Failed to save'); }
-    finally { setSavingPP(false); }
+      toast.success('PromptPay ID saved successfully!');
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('PromptPay save error:', error);
+      
+      // Check for common Firebase errors
+      if (error.message?.includes('permission-denied') || error.message?.includes('PERMISSION_DENIED')) {
+        toast.error('Permission denied. Please check Firestore security rules for config/shop document.');
+      } else if (error.message?.includes('network')) {
+        toast.error('Network error. Please check your connection.');
+      } else {
+        toast.error(`Failed to save: ${error.message || 'Unknown error'}`);
+      }
+    } finally { 
+      setSavingPP(false); 
+    }
   }
 
   async function handleSignOut() {
@@ -155,26 +171,29 @@ export default function ProfileSettings() {
               </Button>
             </div>
 
-            {/* PromptPay ID — available to all users */}
-            <div className="h-px bg-border" />
-            <div className="space-y-1.5">
-              <Label className="text-xs flex items-center gap-1.5 text-muted-foreground">
-                <QrCode className="h-3 w-3" /> PromptPay ID
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  value={promptPayVal}
-                  onChange={(e) => setPromptPayVal(e.target.value)}
-                  className="h-8 text-sm flex-1"
-                  placeholder="Phone or National ID"
-                />
-                <Button size="sm" className="h-8 px-3" onClick={handleSavePromptPay} disabled={savingPP}>
-                  {savingPP ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
-                </Button>
-              </div>
-              <p className="text-[10px] text-muted-foreground">Used to generate PromptPay QR on orders</p>
-            </div>
-
+            {/* PromptPay ID — admin only for security */}
+            {role === 'admin' && (
+              <>
+                <div className="h-px bg-border" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1.5 text-muted-foreground">
+                    <QrCode className="h-3 w-3" /> PromptPay ID
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={promptPayVal}
+                      onChange={(e) => setPromptPayVal(e.target.value)}
+                      className="h-8 text-sm flex-1"
+                      placeholder="Phone or National ID"
+                    />
+                    <Button size="sm" className="h-8 px-3" onClick={handleSavePromptPay} disabled={savingPP}>
+                      {savingPP ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Used to generate PromptPay QR on orders</p>
+                </div>
+              </>
+            )}
 
             <div className="h-px bg-border" />
 

@@ -15,8 +15,13 @@ export function usePromptPay() {
   }, []);
 
   async function savePromptPayId(id: string) {
-    await setShopConfig({ promptPayId: id.trim() });
-    setPromptPayId(id.trim());
+    try {
+      await setShopConfig({ promptPayId: id.trim() });
+      setPromptPayId(id.trim());
+    } catch (error) {
+      console.error('Failed to save PromptPay ID:', error);
+      throw error; // Re-throw so the UI can handle it
+    }
   }
 
   return { promptPayId, loading, savePromptPayId };
