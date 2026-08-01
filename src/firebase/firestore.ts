@@ -129,6 +129,17 @@ export async function setShopConfig(data: Partial<ShopConfig>) {
   return setDoc(doc(db, 'config', 'shop'), data, { merge: true });
 }
 
+// ── User PromptPay ID (per-user) ───────────────────────────────────────────────
+
+export async function getUserPromptPayId(uid: string): Promise<string> {
+  const snap = await getDoc(doc(db, 'users', uid));
+  return snap.exists() ? (snap.data().promptPayId || '') : '';
+}
+
+export async function setUserPromptPayId(uid: string, promptPayId: string) {
+  return setDoc(doc(db, 'users', uid), { promptPayId }, { merge: true });
+}
+
 export async function getAllMenus(): Promise<MenuItem[]> {
   const snap = await getDocs(collection(db, 'menus'));
   return snap.docs.map((d) => ({ id: d.id, ...d.data(), createdAt: tsToString(d.data().createdAt) } as MenuItem));
