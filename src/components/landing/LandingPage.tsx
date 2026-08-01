@@ -144,10 +144,6 @@ export default function LandingPage() {
             transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut', delay: 3 }}
           />
         </div>
-              style={{ 
-                left: `${10 + i * 12}%`, 
-                top: `${20 + (i % 3) * 25}%`,
-        </div>
 
         <motion.div 
           style={{ y: heroY, opacity: heroOpacity }} 
