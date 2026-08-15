@@ -244,7 +244,7 @@ function DashboardMockup() {
       <motion.div
         animate={{ y: [0, -10, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute -top-5 -right-2 sm:-right-6"
+        className="absolute -top-5 -right-2 sm:-right-6 will-change-transform"
       >
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-xl">
           <div className="h-7 w-7 rounded-lg bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
@@ -260,7 +260,7 @@ function DashboardMockup() {
       <motion.div
         animate={{ y: [0, 10, 0] }}
         transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
-        className="absolute -bottom-5 -left-2 sm:-left-6"
+        className="absolute -bottom-5 -left-2 sm:-left-6 will-change-transform"
       >
         <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-xl">
           <div className="h-7 w-7 rounded-lg bg-amber-500/15 text-amber-500 flex items-center justify-center">
@@ -282,11 +282,24 @@ export default function LandingPage() {
   const heroY = useTransform(scrollYProgress, [0, 1], ['0%', '22%']);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.55], [1, 0]);
 
+  // Page-wide scroll progress for the top progress bar
+  const { scrollYProgress: pageProgress } = useScroll();
+  const barScale = useTransform(pageProgress, [0, 1], [0, 1]);
+
   const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    let lastY = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 20);
+      // Hide nav while scrolling down past the hero, reveal on scroll up
+      if (y > lastY + 6 && y > 300) setHidden(true);
+      else if (y < lastY - 6 || y <= 300) setHidden(false);
+      lastY = y;
+    };
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -295,15 +308,22 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
 
+      {/* Scroll progress bar */}
+      <motion.div
+        style={{ scaleX: barScale }}
+        className="fixed top-0 inset-x-0 h-0.5 z-[60] origin-left bg-gradient-to-r from-amber-500 to-orange-500 will-change-transform"
+        aria-hidden
+      />
+
       {/* ── Navigation ─────────────────────────────────────────── */}
       <motion.header
         className={cn(
-          'fixed top-0 inset-x-0 z-50 transition-all duration-500',
-          scrolled ? 'bg-background/80 backdrop-blur-xl border-b border-border shadow-lg' : 'bg-transparent border-b border-transparent'
+          'fixed top-0 inset-x-0 z-50 transition-[background-color,border-color,box-shadow] duration-300',
+          scrolled ? 'bg-background/95 border-b border-border shadow-lg' : 'bg-transparent border-b border-transparent'
         )}
         initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6, ease }}
+        animate={{ y: hidden ? -112 : 0 }}
+        transition={{ duration: hidden ? 0.3 : 0.5, ease }}
       >
         <div className="max-w-7xl mx-auto px-6 md:px-8">
           <div className="flex items-center justify-between h-20">
@@ -361,7 +381,7 @@ export default function LandingPage() {
           <motion.nav
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:hidden border-t border-border bg-background/95 backdrop-blur-xl"
+            className="md:hidden border-t border-border bg-background/95"
           >
             <div className="px-6 py-4 space-y-1">
               {NAV_LINKS.map((link) => (
@@ -389,27 +409,25 @@ export default function LandingPage() {
       {/* ── Hero ────────────────────────────────────────────────── */}
       <section ref={heroRef} className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-32 pb-24 overflow-hidden">
 
-        {/* Waffle grid background */}
-        <div className="absolute inset-0" aria-hidden>
+        {/* Parallax background (grid + orbs) — kept on its own composited layer so
+            scrolling never repaints the hero content above it */}
+        <motion.div style={{ y: heroY, opacity: heroOpacity }} className="absolute inset-0 pointer-events-none" aria-hidden>
           <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] opacity-60 [mask-image:radial-gradient(ellipse_70%_60%_at_50%_35%,black,transparent)]" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
-        </div>
 
-        {/* Gradient orbs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
           <motion.div
-            className="absolute top-1/4 -left-32 w-[28rem] h-[28rem] bg-amber-500/15 rounded-full blur-[128px]"
+            className="absolute top-1/4 -left-32 w-[28rem] h-[28rem] bg-amber-500/15 rounded-full blur-[128px] will-change-transform"
             animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.6, 0.4] }}
             transition={{ duration: 9, repeat: Infinity }}
           />
           <motion.div
-            className="absolute bottom-1/4 -right-32 w-[28rem] h-[28rem] bg-orange-500/15 rounded-full blur-[128px]"
+            className="absolute bottom-1/4 -right-32 w-[28rem] h-[28rem] bg-orange-500/15 rounded-full blur-[128px] will-change-transform"
             animate={{ scale: [1.15, 1, 1.15], opacity: [0.4, 0.6, 0.4] }}
             transition={{ duration: 9, repeat: Infinity, delay: 1 }}
           />
-        </div>
+        </motion.div>
 
-        <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 max-w-7xl mx-auto w-full">
+        <motion.div className="relative z-10 max-w-7xl mx-auto w-full">
           <div className="text-center space-y-7">
             {/* Badge */}
             <motion.div
@@ -505,7 +523,7 @@ export default function LandingPage() {
         <motion.div
           animate={{ y: [0, 12, 0] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-muted-foreground/50"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-muted-foreground/50 will-change-transform"
         >
           <div className="w-6 h-10 rounded-full border-2 border-border flex items-start justify-center p-2">
             <motion.div
@@ -654,7 +672,7 @@ export default function LandingPage() {
               <motion.div
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -bottom-5 left-6 right-6 sm:left-auto sm:-right-6 sm:w-64 rounded-xl border border-border bg-card px-4 py-3 shadow-xl"
+                className="absolute -bottom-5 left-6 right-6 sm:left-auto sm:-right-6 sm:w-64 rounded-xl border border-border bg-card px-4 py-3 shadow-xl will-change-transform"
               >
                 <div className="flex items-center gap-1 mb-1">
                   {Array.from({ length: 5 }).map((_, s) => (

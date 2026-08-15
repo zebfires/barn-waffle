@@ -172,6 +172,26 @@
   }
 }
 
+/* ── Custom scrollbar ─────────────────────────────────────────── */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--primary) 60%, transparent) transparent;
+}
+html::-webkit-scrollbar {
+  width: 10px;
+}
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--primary) 55%, transparent);
+  border-radius: 999px;
+  border: 2px solid var(--background);
+}
+html::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
 @keyframes shimmer-sweep {
   0%   { transform: translateX(-150%) skewX(-12deg); }
   100% { transform: translateX(250%) skewX(-12deg); }
