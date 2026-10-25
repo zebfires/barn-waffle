@@ -7,8 +7,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), var(--font-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -226,5 +226,90 @@ html::-webkit-scrollbar-thumb:hover {
   }
   .page-header p {
     @apply text-sm text-muted-foreground mt-1;
+  }
+}
+
+/* ── Storefront (landing page) ─────────────────────────────────────
+   The landing page is always warm parchment, while the app defaults to
+   dark. Tokens are re-declared on the wrapper, so the dashboard keeps
+   its own theme. Because `.dark` sits on <html>, `dark:` utilities would
+   still match inside this scope — landing components must not use them. */
+.landing-warm {
+  color-scheme: light;
+  --background: oklch(0.972 0.017 82);
+  --foreground: oklch(0.265 0.042 55);
+  --card: oklch(0.995 0.008 85);
+  --card-foreground: oklch(0.265 0.042 55);
+  --popover: oklch(0.995 0.008 85);
+  --popover-foreground: oklch(0.265 0.042 55);
+  --primary: oklch(0.46 0.125 48);
+  --primary-foreground: oklch(0.985 0.01 85);
+  --secondary: oklch(0.935 0.028 78);
+  --secondary-foreground: oklch(0.3 0.05 52);
+  --muted: oklch(0.94 0.02 80);
+  --muted-foreground: oklch(0.45 0.035 58);
+  --accent: oklch(0.56 0.15 28);
+  --accent-foreground: oklch(0.985 0.01 85);
+  --border: oklch(0.87 0.024 76);
+  --input: oklch(0.9 0.02 76);
+  --ring: oklch(0.46 0.125 48);
+}
+
+@layer utilities {
+  /* Fraunces for Latin, Plex Sans Thai for Thai headings. */
+  .font-display {
+    font-family: var(--font-display), var(--font-thai), Georgia, 'Times New Roman', serif;
+  }
+
+  /* Waffle-iron grid, faded at the edges so it never fights the content. */
+  .landing-grid {
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        color-mix(in oklab, var(--foreground) 8%, transparent) 0 1px,
+        transparent 1px 22px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        color-mix(in oklab, var(--foreground) 8%, transparent) 0 1px,
+        transparent 1px 22px
+      );
+    background-position: center;
+    -webkit-mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 5%, transparent 95%);
+    mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 5%, transparent 95%);
+  }
+
+  /* Scalloped edge in currentColor; the mask cuts semicircles out of the band. */
+  .scallop {
+    height: 18px;
+    background-color: currentColor;
+    -webkit-mask-image: radial-gradient(circle at 50% 100%, transparent 0 13px, #000 13.5px);
+    mask-image: radial-gradient(circle at 50% 100%, transparent 0 13px, #000 13.5px);
+    -webkit-mask-size: 26px 18px;
+    mask-size: 26px 18px;
+    -webkit-mask-repeat: repeat-x;
+    mask-repeat: repeat-x;
+  }
+}
+
+@keyframes landing-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.marquee-track {
+  animation: landing-marquee 46s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .marquee-track {
+    animation: none;
   }
 }

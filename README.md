@@ -30,6 +30,22 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+## Storefront (Landing Page)
+
+The public page at `/` is a customer-facing storefront — menu, ordering on LINE,
+and visiting details — not a pitch for the POS. Everything shop-specific lives in
+two files:
+
+| File | Holds |
+|---|---|
+| `src/components/landing/site.ts` | Shop name, phone, LINE ID, address, hours, menu items and photos |
+| `src/components/landing/copy.ts` | All English and Thai copy |
+
+Shop details ship blank on purpose (`lineId`, `address`, `hours`). While blank, the
+page degrades instead of breaking: the order tray copies the order and opens LINE
+instead of deep-linking a chat, and the Visit card drops the address and directions
+rows. Fill in `site.ts` to switch the real behaviour on.
+
 ## Features
 
 | Feature | Description |
