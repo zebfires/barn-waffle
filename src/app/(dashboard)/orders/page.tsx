@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Plus, Minus, Trash2, Receipt, QrCode, Banknote, X, ClipboardList, Filter, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Receipt, QrCode, Banknote, X, ClipboardList, Filter, AlertTriangle, CheckCircle2, Camera, Loader2, ShieldCheck } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import generatePayload from 'promptpay-qr';
 import { usePromptPay } from '@/hooks/usePromptPay';
@@ -35,7 +35,14 @@ export default function OrdersPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qr'>('cash');
   const [submitting, setSubmitting] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
-  const [pendingQr, setPendingQr] = useState<{ order: Order; promptPayId: string } | null>(null);
+  const [pendingQr, setPendingQr] = useState<{
+    order: Order;
+    promptPayId: string;
+    check: boolean;
+  } | null>(null);
+  const [slipCheck, setSlipCheck] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const slipInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all');
@@ -114,6 +121,7 @@ export default function OrdersPage() {
         status,
         // Stored on the order so the customer display can build the QR itself.
         ...(paymentMethod === 'qr' ? { promptPayId: qrId } : {}),
+        ...(paymentMethod === 'qr' && slipCheck ? { slipCheck: true } : {}),
       });
       const newOrder: Order = {
         id: docRef.id,
@@ -125,6 +133,7 @@ export default function OrdersPage() {
         createdAt: new Date().toISOString(),
         status,
         promptPayId: paymentMethod === 'qr' ? qrId : undefined,
+        slipCheck: paymentMethod === 'qr' && slipCheck ? true : undefined,
         cashReceived: paymentMethod === 'cash' && cashReceived !== '' ? cashReceived as number : undefined,
       };
 
@@ -133,7 +142,7 @@ export default function OrdersPage() {
       setCashReceived('');
 
       if (paymentMethod === 'qr') {
-        setPendingQr({ order: newOrder, promptPayId: qrId });
+        setPendingQr({ order: newOrder, promptPayId: qrId, check: slipCheck });
         toast.success('Order placed — QR is showing on the display phone');
       } else {
         toast.success('Order placed!');
@@ -161,6 +170,47 @@ export default function OrdersPage() {
       toast.error(`Failed to confirm payment: ${errText(err)}`);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function verifySlip(file: File) {
+    if (!pendingQr) return;
+    setVerifying(true);
+    try {
+      const body = new FormData();
+      body.set('file', file);
+      body.set('amount', String(pendingQr.order.total));
+      body.set('promptPayId', pendingQr.promptPayId);
+
+      const res = await fetch('/api/verify-slip', { method: 'POST', body });
+      const result = (await res.json()) as {
+        ok: boolean;
+        code?: string;
+        message?: string;
+        amount?: number;
+        transRef?: string | null;
+      };
+
+      if (!result.ok) {
+        toast.error(`Slip rejected: ${result.message || result.code || 'unknown error'}`);
+        return;
+      }
+
+      const paid: Order = {
+        ...pendingQr.order,
+        status: 'paid',
+        paidAt: new Date().toISOString(),
+        slipRef: result.transRef ?? undefined,
+      };
+      await markOrderPaid(paid.id, result.transRef ? { slipRef: result.transRef } : undefined);
+      setPendingQr(null);
+      setReceiptOrder(paid);
+      toast.success(`Payment verified · ฿${result.amount ?? paid.total}`);
+    } catch (err) {
+      console.error('verifySlip failed:', err);
+      toast.error(`Slip check failed: ${errText(err)}`);
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -406,6 +456,33 @@ export default function OrdersPage() {
                             <QrCode className="h-3 w-3 mr-1" /> QR
                           </Button>
                         </div>
+
+                        {paymentMethod === 'qr' && (
+                          <div className="grid grid-cols-2 gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setSlipCheck(false)}
+                              className={`text-[11px] font-semibold px-2 py-1.5 rounded-md border transition-colors ${
+                                !slipCheck
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-background border-border text-muted-foreground'
+                              }`}
+                            >
+                              Manual confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSlipCheck(true)}
+                              className={`text-[11px] font-semibold px-2 py-1.5 rounded-md border transition-colors ${
+                                slipCheck
+                                  ? 'bg-emerald-600 text-white border-emerald-600'
+                                  : 'bg-background border-border text-muted-foreground'
+                              }`}
+                            >
+                              ตรวจสลิป · Check slip
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <Button
@@ -589,6 +666,39 @@ export default function OrdersPage() {
               <p className="text-xs text-muted-foreground">
                 Showing on the display phone.<br />This QR is the fallback for this phone.
               </p>
+
+              {pendingQr.check && (
+                <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2 text-left">
+                  <p className="text-xs font-semibold flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> ตรวจสลิปอัตโนมัติ · Slip2Go
+                  </p>
+                  <input
+                    ref={slipInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => {
+                      const picked = e.target.files?.[0];
+                      e.target.value = '';
+                      if (picked) void verifySlip(picked);
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    className="w-full gap-2"
+                    onClick={() => slipInputRef.current?.click()}
+                    disabled={verifying || submitting}
+                  >
+                    {verifying
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> กำลังตรวจสลิป…</>
+                      : <><Camera className="h-4 w-4" /> ถ่าย/อัปโหลดสลิป</>}
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground">
+                    Must be ฿{pendingQr.order.total} received at {pendingQr.promptPayId}.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Button className="w-full gap-2" onClick={confirmQrPayment} disabled={submitting}>

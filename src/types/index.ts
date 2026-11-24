@@ -43,6 +43,10 @@ export interface Order {
   promptPayId?: string;
   /** When staff confirmed the money arrived (drives the display's paid screen). */
   paidAt?: string;
+  /** QR order placed with Slip2Go verification enabled. */
+  slipCheck?: boolean;
+  /** Slip2Go transaction reference once a slip was verified. */
+  slipRef?: string;
 }
 
 export interface InventoryItem {

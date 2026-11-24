@@ -79,8 +79,12 @@ export async function deleteAllOrders() {
   await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
 }
 
-export async function markOrderPaid(id: string) {
-  return updateDoc(doc(db, 'orders', id), { status: 'paid', paidAt: new Date().toISOString() });
+export async function markOrderPaid(id: string, extra?: { slipRef?: string }) {
+  return updateDoc(doc(db, 'orders', id), {
+    status: 'paid',
+    paidAt: new Date().toISOString(),
+    ...(extra?.slipRef ? { slipRef: extra.slipRef } : {}),
+  });
 }
 
 export async function getRecentOrders(limitCount = 50): Promise<Order[]> {
