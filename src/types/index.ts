@@ -26,6 +26,8 @@ export interface OrderItem {
   quantity: number;
 }
 
+export type OrderStatus = 'awaiting_payment' | 'paid';
+
 export interface Order {
   id: string;
   items: OrderItem[];
@@ -35,6 +37,19 @@ export interface Order {
   createdAt: string;
   staffId: string;
   cashReceived?: number;
+  /** Missing on older orders — treated as paid. */
+  status?: OrderStatus;
+}
+
+/** Drives the customer-facing QR display (`payments/current`). */
+export interface PaymentSession {
+  orderId: string;
+  total: number;
+  items: OrderItem[];
+  promptPayId: string;
+  status: 'awaiting' | 'paid';
+  createdAt: string;
+  paidAt?: string;
 }
 
 export interface InventoryItem {

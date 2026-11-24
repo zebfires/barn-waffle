@@ -16,7 +16,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from './config';
-import type { MenuItem, Order, InventoryItem, Analytics, CalculatorItem } from '@/types';
+import type { MenuItem, Order, InventoryItem, Analytics, CalculatorItem, PaymentSession } from '@/types';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +67,32 @@ export async function deleteOrder(id: string) {
 export async function deleteAllOrders() {
   const snap = await getDocs(collection(db, 'orders'));
   await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+}
+
+export async function markOrderPaid(id: string) {
+  return updateDoc(doc(db, 'orders', id), { status: 'paid' });
+}
+
+// ── Customer QR display (single live session) ─────────────────────────────────
+
+const paymentSessionRef = doc(db, 'payments', 'current');
+
+export async function setPaymentSession(data: PaymentSession) {
+  return setDoc(paymentSessionRef, data);
+}
+
+export async function updatePaymentSession(data: Partial<PaymentSession>) {
+  return updateDoc(paymentSessionRef, data);
+}
+
+export async function clearPaymentSession() {
+  return deleteDoc(paymentSessionRef);
+}
+
+export function onPaymentSessionSnapshot(callback: (session: PaymentSession | null) => void) {
+  return onSnapshot(paymentSessionRef, (snap) => {
+    callback(snap.exists() ? (snap.data() as PaymentSession) : null);
+  });
 }
 
 export async function getRecentOrders(limitCount = 50): Promise<Order[]> {

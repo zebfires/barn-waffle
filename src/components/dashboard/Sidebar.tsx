@@ -11,6 +11,7 @@ import {
   UtensilsCrossed,
   Package,
   ShoppingCart,
+  Monitor,
 } from 'lucide-react';
 import ProfileSettings from '@/components/dashboard/ProfileSettings';
 import { useLanguage } from '@/hooks/useLanguage';
@@ -19,6 +20,7 @@ import { useLowStock } from '@/hooks/useLowStock';
 const mainItems = [
   { href: '/dashboard', key: 'nav_dashboard' as const, icon: LayoutDashboard },
   { href: '/orders', key: 'nav_orders' as const, icon: ShoppingCart },
+  { href: '/display', key: 'nav_display' as const, icon: Monitor },
   { href: '/menu', key: 'nav_menu' as const, icon: UtensilsCrossed },
   { href: '/inventory', key: 'nav_inventory' as const, icon: Package },
   { href: '/calculator', key: 'nav_calculator' as const, icon: Calculator },

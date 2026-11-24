@@ -16,7 +16,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { onMenusSnapshot, addOrder, onOrdersSnapshot, deleteOrder, deleteAllOrders } from '@/firebase/firestore';
+import {
+  onMenusSnapshot,
+  addOrder,
+  onOrdersSnapshot,
+  deleteOrder,
+  deleteAllOrders,
+  markOrderPaid,
+  setPaymentSession,
+  updatePaymentSession,
+  clearPaymentSession,
+} from '@/firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import type { MenuItem, Order, OrderItem } from '@/types';
 import { format, parseISO } from 'date-fns';
@@ -30,7 +40,7 @@ export default function OrdersPage() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'qr'>('cash');
   const [submitting, setSubmitting] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
-  const [qrOpen, setQrOpen] = useState(false);
+  const [pendingQr, setPendingQr] = useState<{ order: Order; promptPayId: string } | null>(null);
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all');
@@ -85,7 +95,10 @@ export default function OrdersPage() {
       toast.error('Cash received is less than total');
       return;
     }
-    if (paymentMethod === 'qr') { setQrOpen(true); return; }
+    if (paymentMethod === 'qr' && !promptPayId) {
+      toast.error('No PromptPay ID set — add it in the profile menu first');
+      return;
+    }
     await placeOrder();
   }
 
@@ -93,34 +106,99 @@ export default function OrdersPage() {
 
   async function placeOrder() {
     setSubmitting(true);
+    const items = cart;
+    const qrId = promptPayId;
     try {
+      const status = paymentMethod === 'qr' ? 'awaiting_payment' : 'paid';
       const docRef = await addOrder({
-        items: cart,
+        items,
         total: cartTotal,
         paymentMethod,
         customerNote: note,
         staffId: user?.uid || '',
+        status,
       });
       const newOrder: Order = {
         id: docRef.id,
-        items: cart,
+        items,
         total: cartTotal,
         paymentMethod,
         customerNote: note,
         staffId: user?.uid || '',
         createdAt: new Date().toISOString(),
+        status,
         cashReceived: paymentMethod === 'cash' && cashReceived !== '' ? cashReceived as number : undefined,
       };
-      toast.success('Order placed!');
+
       setCart([]);
       setNote('');
       setCashReceived('');
-      setQrOpen(false);
-      setReceiptOrder(newOrder);
+
+      if (paymentMethod === 'qr') {
+        // Publish the session so the customer-facing phone shows this QR
+        try {
+          await setPaymentSession({
+            orderId: newOrder.id,
+            total: newOrder.total,
+            items,
+            promptPayId: qrId,
+            status: 'awaiting',
+            createdAt: newOrder.createdAt,
+          });
+        } catch {
+          toast.error('Order saved, but the display phone did not update');
+        }
+        setPendingQr({ order: newOrder, promptPayId: qrId });
+        toast.success('Order placed — QR is showing on the display phone');
+      } else {
+        toast.success('Order placed!');
+        setReceiptOrder(newOrder);
+      }
     } catch {
       toast.error('Failed to place order');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function confirmQrPayment() {
+    if (!pendingQr) return;
+    setSubmitting(true);
+    const paid: Order = { ...pendingQr.order, status: 'paid' };
+    try {
+      await markOrderPaid(paid.id);
+      await updatePaymentSession({ status: 'paid', paidAt: new Date().toISOString() });
+      setPendingQr(null);
+      setReceiptOrder(paid);
+      toast.success('Payment received!');
+    } catch {
+      toast.error('Failed to confirm payment');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function cancelQrPayment() {
+    if (!pendingQr) return;
+    const orderId = pendingQr.order.id;
+    setPendingQr(null);
+    try {
+      await clearPaymentSession();
+      await deleteOrder(orderId);
+      toast.success('Order cancelled');
+    } catch {
+      toast.error('Failed to cancel order');
+    }
+  }
+
+  async function handleConfirmFromHistory(order: Order) {
+    try {
+      await markOrderPaid(order.id);
+      await updatePaymentSession({ status: 'paid', paidAt: new Date().toISOString() });
+      setReceiptOrder({ ...order, status: 'paid' });
+      toast.success('Payment received!');
+    } catch {
+      toast.error('Failed to confirm payment');
     }
   }
 
@@ -132,6 +210,7 @@ export default function OrdersPage() {
     setClearing(true);
     try {
       await deleteAllOrders();
+      await clearPaymentSession();
       toast.success('All orders cleared!');
       setClearConfirmOpen(false);
     } catch {
@@ -432,12 +511,28 @@ export default function OrdersPage() {
                               {order.items.map((i) => `${i.name} ×${i.quantity}`).join(', ')}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="text-xs uppercase">{order.paymentMethod}</Badge>
+                              <div className="flex items-center gap-1">
+                                <Badge variant="outline" className="text-xs uppercase">{order.paymentMethod}</Badge>
+                                {order.status === 'awaiting_payment' && (
+                                  <Badge className="text-[10px] bg-amber-500 text-white">Awaiting</Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="font-semibold text-primary">฿{order.total}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{order.customerNote || '—'}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
+                                {order.status === 'awaiting_payment' && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-emerald-600 dark:text-emerald-400"
+                                    title="Confirm payment received"
+                                    onClick={() => handleConfirmFromHistory(order)}
+                                  >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button size="sm" variant="ghost" onClick={() => setReceiptOrder(order)}>
                                   <Receipt className="h-4 w-4" />
                                 </Button>
@@ -478,52 +573,50 @@ export default function OrdersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* QR Payment Dialog */}
-      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+      {/* Waiting for QR payment Dialog */}
+      <Dialog open={!!pendingQr} onOpenChange={(open) => { if (!open) void cancelQrPayment(); }}>
         <DialogContent className="max-w-xs text-center">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-center gap-2">
-              <QrCode className="h-4 w-4" /> PromptPay
+              <QrCode className="h-4 w-4" /> Waiting for payment
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="text-4xl font-bold text-primary">฿{cartTotal.toLocaleString()}</div>
+          {pendingQr && (
+            <div className="space-y-4">
+              <div className="text-4xl font-bold text-primary">฿{pendingQr.order.total.toLocaleString()}</div>
 
-            {promptPayId ? (
               <div className="bg-white rounded-2xl p-4 flex items-center justify-center mx-auto w-fit shadow-sm">
                 <QRCodeSVG
-                  value={generatePayload(promptPayId, { amount: cartTotal })}
-                  size={200}
+                  value={generatePayload(pendingQr.promptPayId, { amount: pendingQr.order.total })}
+                  size={180}
                   bgColor="#ffffff"
                   fgColor="#1a1a1a"
                   level="M"
                   imageSettings={{
                     src: '/logo.png',
-                    height: 36,
-                    width: 36,
+                    height: 32,
+                    width: 32,
                     excavate: true,
                   }}
                 />
               </div>
-            ) : (
-              <div className="bg-muted rounded-xl p-8 flex flex-col items-center gap-2 text-muted-foreground">
-                <QrCode className="h-10 w-10 opacity-30" />
-                <p className="text-xs">No PromptPay ID set.<br />Go to profile settings to add one.</p>
+
+              <p className="text-xs text-muted-foreground">
+                Showing on the display phone.<br />This QR is the fallback for this phone.
+              </p>
+
+              <div className="space-y-2">
+                <Button className="w-full gap-2" onClick={confirmQrPayment} disabled={submitting}>
+                  {submitting
+                    ? <><Receipt className="h-4 w-4 animate-spin" /> Processing…</>
+                    : <><CheckCircle2 className="h-4 w-4" /> Confirm Payment Received</>}
+                </Button>
+                <Button variant="outline" className="w-full text-xs" onClick={cancelQrPayment} disabled={submitting}>
+                  Cancel order
+                </Button>
               </div>
-            )}
-
-            {promptPayId && (
-              <p className="text-xs text-muted-foreground">ID: {promptPayId}</p>
-            )}
-
-            <p className="text-sm text-muted-foreground">Show this QR to the customer.<br />Confirm once payment is received.</p>
-
-            <Button className="w-full gap-2" onClick={placeOrder} disabled={submitting}>
-              {submitting
-                ? <><Receipt className="h-4 w-4 animate-spin" /> Processing…</>
-                : <><CheckCircle2 className="h-4 w-4" /> Confirm Payment Received</>}
-            </Button>
-          </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
