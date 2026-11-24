@@ -9,6 +9,8 @@ export interface AppUser {
 }
 
 export interface MenuItem {
+  /** Pinned to the top of the POS menu grid. */
+  pinned?: boolean;
   id: string;
   name: string;
   category: string;

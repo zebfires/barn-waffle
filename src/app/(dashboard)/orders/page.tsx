@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, Plus, Minus, Trash2, Receipt, QrCode, Banknote, X, ClipboardList, Filter, AlertTriangle, CheckCircle2, Camera, Loader2, ShieldCheck } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Receipt, QrCode, Banknote, X, ClipboardList, Filter, AlertTriangle, CheckCircle2, Camera, Loader2, ShieldCheck, Pin } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import generatePayload from 'promptpay-qr';
 import { usePromptPay } from '@/hooks/usePromptPay';
@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { onMenusSnapshot, addOrder, onOrdersSnapshot, deleteOrder, deleteAllOrders, markOrderPaid } from '@/firebase/firestore';
+import { onMenusSnapshot, addOrder, onOrdersSnapshot, deleteOrder, deleteAllOrders, markOrderPaid, updateMenu } from '@/firebase/firestore';
 
 function errText(err: unknown) {
   const e = err as { code?: string; message?: string };
@@ -44,6 +44,7 @@ export default function OrdersPage() {
   const [verifying, setVerifying] = useState(false);
   const slipInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
+  const [pinnedOnly, setPinnedOnly] = useState(false);
   const [dateFilter, setDateFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
@@ -58,7 +59,10 @@ export default function OrdersPage() {
     return () => { u1(); u2(); };
   }, []);
 
-  const filteredMenus = menus.filter((m) =>
+  const filteredMenus = menus
+    .filter((m) => !pinnedOnly || m.pinned)
+    .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned))
+    .filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -77,6 +81,19 @@ export default function OrdersPage() {
       if (existing) return prev.map((i) => i.menuId === menu.id ? { ...i, quantity: i.quantity + 1 } : i);
       return [...prev, { menuId: menu.id, name: menu.name, price: menu.price, quantity: 1 }];
     });
+  }
+
+  async function togglePin(menu: MenuItem) {
+    const next = !menu.pinned;
+    // Optimistic: reorder immediately, undo if Firestore rejects the write.
+    setMenus((prev) => prev.map((m) => m.id === menu.id ? { ...m, pinned: next } : m));
+    try {
+      await updateMenu(menu.id, { pinned: next });
+    } catch (err) {
+      setMenus((prev) => prev.map((m) => m.id === menu.id ? { ...m, pinned: !next } : m));
+      console.error('togglePin failed:', err);
+      toast.error(`Failed to ${next ? 'pin' : 'unpin'}: ${errText(err)}`);
+    }
   }
 
   function updateQty(menuId: string, delta: number) {
@@ -283,10 +300,23 @@ export default function OrdersPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
+              <Button
+                variant={pinnedOnly ? 'default' : 'outline'}
+                size="sm"
+                className="w-full gap-1.5 text-xs"
+                onClick={() => setPinnedOnly((v) => !v)}
+              >
+                <Pin className="h-3.5 w-3.5" />
+                {pinnedOnly ? 'Showing pinned only' : `Show pinned only${menus.some((m) => m.pinned) ? '' : ' (none yet)'}`}
+              </Button>
               {filteredMenus.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <ShoppingCart className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">No menu items. Add some in Menu Management first.</p>
+                  <p className="text-sm">
+                    {pinnedOnly
+                      ? 'Nothing pinned yet — tap the pin on any card to keep it here.'
+                      : 'No menu items. Add some in Menu Management first.'}
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -300,10 +330,23 @@ export default function OrdersPage() {
                         transition={{ delay: i * 0.03 }}
                       >
                         <Card
-                          className="cursor-pointer hover:shadow-md transition-shadow border-border/60 overflow-hidden"
+                          className={`cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${menu.pinned ? 'border-primary/60 ring-1 ring-primary/30' : 'border-border/60'}`}
                           onClick={() => addToCart(menu)}
                         >
                           <div className="relative h-28 bg-muted">
+                            <button
+                              type="button"
+                              title={menu.pinned ? 'Unpin from top' : 'Pin to top'}
+                              aria-label={menu.pinned ? `Unpin ${menu.name}` : `Pin ${menu.name} to top`}
+                              onClick={(e) => { e.stopPropagation(); void togglePin(menu); }}
+                              className={`absolute top-1 left-1 z-10 h-6 w-6 rounded-full flex items-center justify-center border shadow-sm transition-colors ${
+                                menu.pinned
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-background/85 text-muted-foreground border-border hover:bg-background'
+                              }`}
+                            >
+                              <Pin className={`h-3 w-3 ${menu.pinned ? 'fill-current' : ''}`} />
+                            </button>
                             {menu.image ? (
                               <img src={menu.image} alt={menu.name} className="w-full h-full object-cover" />
                             ) : (
