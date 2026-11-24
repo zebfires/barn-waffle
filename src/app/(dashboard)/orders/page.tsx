@@ -16,17 +16,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import {
-  onMenusSnapshot,
-  addOrder,
-  onOrdersSnapshot,
-  deleteOrder,
-  deleteAllOrders,
-  markOrderPaid,
-  setPaymentSession,
-  updatePaymentSession,
-  clearPaymentSession,
-} from '@/firebase/firestore';
+import { onMenusSnapshot, addOrder, onOrdersSnapshot, deleteOrder, deleteAllOrders, markOrderPaid } from '@/firebase/firestore';
+
+function errText(err: unknown) {
+  const e = err as { code?: string; message?: string };
+  return e?.code || e?.message || 'unknown error';
+}
 import { useAuth } from '@/hooks/useAuth';
 import type { MenuItem, Order, OrderItem } from '@/types';
 import { format, parseISO } from 'date-fns';
@@ -117,6 +112,8 @@ export default function OrdersPage() {
         customerNote: note,
         staffId: user?.uid || '',
         status,
+        // Stored on the order so the customer display can build the QR itself.
+        ...(paymentMethod === 'qr' ? { promptPayId: qrId } : {}),
       });
       const newOrder: Order = {
         id: docRef.id,
@@ -127,6 +124,7 @@ export default function OrdersPage() {
         staffId: user?.uid || '',
         createdAt: new Date().toISOString(),
         status,
+        promptPayId: paymentMethod === 'qr' ? qrId : undefined,
         cashReceived: paymentMethod === 'cash' && cashReceived !== '' ? cashReceived as number : undefined,
       };
 
@@ -135,27 +133,15 @@ export default function OrdersPage() {
       setCashReceived('');
 
       if (paymentMethod === 'qr') {
-        // Publish the session so the customer-facing phone shows this QR
-        try {
-          await setPaymentSession({
-            orderId: newOrder.id,
-            total: newOrder.total,
-            items,
-            promptPayId: qrId,
-            status: 'awaiting',
-            createdAt: newOrder.createdAt,
-          });
-        } catch {
-          toast.error('Order saved, but the display phone did not update');
-        }
         setPendingQr({ order: newOrder, promptPayId: qrId });
         toast.success('Order placed — QR is showing on the display phone');
       } else {
         toast.success('Order placed!');
         setReceiptOrder(newOrder);
       }
-    } catch {
-      toast.error('Failed to place order');
+    } catch (err) {
+      console.error('placeOrder failed:', err);
+      toast.error(`Failed to place order: ${errText(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -164,15 +150,15 @@ export default function OrdersPage() {
   async function confirmQrPayment() {
     if (!pendingQr) return;
     setSubmitting(true);
-    const paid: Order = { ...pendingQr.order, status: 'paid' };
+    const paid: Order = { ...pendingQr.order, status: 'paid', paidAt: new Date().toISOString() };
     try {
       await markOrderPaid(paid.id);
-      await updatePaymentSession({ status: 'paid', paidAt: new Date().toISOString() });
       setPendingQr(null);
       setReceiptOrder(paid);
       toast.success('Payment received!');
-    } catch {
-      toast.error('Failed to confirm payment');
+    } catch (err) {
+      console.error('confirmQrPayment failed:', err);
+      toast.error(`Failed to confirm payment: ${errText(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -183,22 +169,22 @@ export default function OrdersPage() {
     const orderId = pendingQr.order.id;
     setPendingQr(null);
     try {
-      await clearPaymentSession();
       await deleteOrder(orderId);
       toast.success('Order cancelled');
-    } catch {
-      toast.error('Failed to cancel order');
+    } catch (err) {
+      console.error('cancelQrPayment failed:', err);
+      toast.error(`Failed to cancel order: ${errText(err)}`);
     }
   }
 
   async function handleConfirmFromHistory(order: Order) {
     try {
       await markOrderPaid(order.id);
-      await updatePaymentSession({ status: 'paid', paidAt: new Date().toISOString() });
-      setReceiptOrder({ ...order, status: 'paid' });
+      setReceiptOrder({ ...order, status: 'paid', paidAt: new Date().toISOString() });
       toast.success('Payment received!');
-    } catch {
-      toast.error('Failed to confirm payment');
+    } catch (err) {
+      console.error('handleConfirmFromHistory failed:', err);
+      toast.error(`Failed to confirm payment: ${errText(err)}`);
     }
   }
 
@@ -210,7 +196,6 @@ export default function OrdersPage() {
     setClearing(true);
     try {
       await deleteAllOrders();
-      await clearPaymentSession();
       toast.success('All orders cleared!');
       setClearConfirmOpen(false);
     } catch {

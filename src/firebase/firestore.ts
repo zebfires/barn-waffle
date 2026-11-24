@@ -16,7 +16,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from './config';
-import type { MenuItem, Order, InventoryItem, Analytics, CalculatorItem, PaymentSession } from '@/types';
+import type { MenuItem, Order, InventoryItem, Analytics, CalculatorItem } from '@/types';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -53,11 +53,21 @@ export async function addOrder(data: Omit<Order, 'id' | 'createdAt'>) {
   return addDoc(collection(db, 'orders'), { ...data, createdAt: serverTimestamp() });
 }
 
-export function onOrdersSnapshot(callback: (items: Order[]) => void) {
+export function onOrdersSnapshot(
+  callback: (items: Order[]) => void,
+  onError?: (error: { code?: string; message?: string }) => void
+) {
   const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data(), createdAt: tsToString(d.data().createdAt) } as Order)));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data(), createdAt: tsToString(d.data().createdAt) } as Order)));
+    },
+    (err) => {
+      console.error('orders listener failed:', err.code, err.message);
+      onError?.(err);
+    }
+  );
 }
 
 export async function deleteOrder(id: string) {
@@ -70,29 +80,7 @@ export async function deleteAllOrders() {
 }
 
 export async function markOrderPaid(id: string) {
-  return updateDoc(doc(db, 'orders', id), { status: 'paid' });
-}
-
-// ── Customer QR display (single live session) ─────────────────────────────────
-
-const paymentSessionRef = doc(db, 'payments', 'current');
-
-export async function setPaymentSession(data: PaymentSession) {
-  return setDoc(paymentSessionRef, data);
-}
-
-export async function updatePaymentSession(data: Partial<PaymentSession>) {
-  return updateDoc(paymentSessionRef, data);
-}
-
-export async function clearPaymentSession() {
-  return deleteDoc(paymentSessionRef);
-}
-
-export function onPaymentSessionSnapshot(callback: (session: PaymentSession | null) => void) {
-  return onSnapshot(paymentSessionRef, (snap) => {
-    callback(snap.exists() ? (snap.data() as PaymentSession) : null);
-  });
+  return updateDoc(doc(db, 'orders', id), { status: 'paid', paidAt: new Date().toISOString() });
 }
 
 export async function getRecentOrders(limitCount = 50): Promise<Order[]> {

@@ -6,11 +6,12 @@ import Image from 'next/image';
 import { QRCodeSVG } from 'qrcode.react';
 import generatePayload from 'promptpay-qr';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, QrCode } from 'lucide-react';
+import { CheckCircle2, QrCode, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/hooks/useLanguage';
-import { onPaymentSessionSnapshot } from '@/firebase/firestore';
-import type { PaymentSession } from '@/types';
+import { usePromptPay } from '@/hooks/usePromptPay';
+import { onOrdersSnapshot } from '@/firebase/firestore';
+import type { Order } from '@/types';
 
 const PAID_HOLD_MS = 8000;
 
@@ -18,29 +19,29 @@ export default function DisplayPage() {
   const { user, loading } = useAuth();
   const { lang } = useLanguage();
   const router = useRouter();
-  const [session, setSession] = useState<PaymentSession | null>(null);
-  const [paidDismissed, setPaidDismissed] = useState(false);
+  const { promptPayId: myPromptPayId } = usePromptPay();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [error, setError] = useState('');
+  const [now, setNow] = useState(() => Date.now());
   const th = lang === 'th';
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
 
+  // The display is driven by the same orders the POS writes — no extra collection.
   useEffect(() => {
     if (!user) return;
-    return onPaymentSessionSnapshot(setSession);
+    return onOrdersSnapshot(setOrders, (err) => {
+      setError(err.code || err.message || 'read failed');
+    });
   }, [user]);
 
-  // After showing "payment received", drop back to the idle screen.
+  // Re-render each second so the "payment received" screen expires by itself.
   useEffect(() => {
-    if (session?.status !== 'paid') {
-      setPaidDismissed(false);
-      return;
-    }
-    setPaidDismissed(false);
-    const timer = setTimeout(() => setPaidDismissed(true), PAID_HOLD_MS);
-    return () => clearTimeout(timer);
-  }, [session?.status, session?.paidAt]);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Keep the customer-facing screen awake while this page is open.
   useEffect(() => {
@@ -66,12 +67,12 @@ export default function DisplayPage() {
     };
   }, []);
 
-  const showingQr = session?.status === 'awaiting' && !!session.promptPayId;
-  // Ignore an old "paid" doc (e.g. page opened long after the sale) so a fresh
-  // display doesn't greet the next customer with a payment confirmation.
-  const paidAtMs = session?.paidAt ? Date.parse(session.paidAt) : NaN;
-  const paidIsFresh = Number.isFinite(paidAtMs) && Date.now() - paidAtMs < PAID_HOLD_MS;
-  const showingPaid = session?.status === 'paid' && !paidDismissed && paidIsFresh;
+  const awaiting = orders.find((o) => o.status === 'awaiting_payment');
+  const justPaid = orders.find(
+    (o) => o.status === 'paid' && !!o.paidAt && now - Date.parse(o.paidAt) < PAID_HOLD_MS
+  );
+  const qrId = awaiting?.promptPayId || myPromptPayId;
+  const showingQr = !!awaiting && !!qrId;
 
   if (loading) {
     return (
@@ -86,16 +87,24 @@ export default function DisplayPage() {
   return (
     <main className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-center gap-2 pt-6 pb-2 flex-shrink-0">
-        <Image src="/logo.png" alt="Barn Waffles" width={28} height={28} className="rounded-full" />
-        <span className="text-sm font-semibold tracking-tight">Barn Waffles · บ้าน Waffles</span>
+      <header className="flex flex-col items-center gap-1 pt-6 pb-2 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Image src="/logo.png" alt="Barn Waffles" width={28} height={28} className="rounded-full" />
+          <span className="text-sm font-semibold tracking-tight">Barn Waffles · บ้าน Waffles</span>
+        </div>
+        {error && (
+          <p className="flex items-center gap-1.5 text-[11px] text-destructive">
+            <AlertTriangle className="h-3 w-3" />
+            {th ? 'อ่านคำสั่งซื้อไม่ได้' : 'Cannot read orders'}: {error}
+          </p>
+        )}
       </header>
 
       <div className="flex-1 flex items-center justify-center px-6 pb-10">
         <AnimatePresence mode="wait">
-          {showingQr && session ? (
+          {showingQr && awaiting && qrId ? (
             <motion.div
-              key={`qr-${session.orderId}`}
+              key={`qr-${awaiting.id}`}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -16 }}
@@ -106,12 +115,12 @@ export default function DisplayPage() {
               </p>
 
               <div className="text-5xl font-bold text-primary tabular-nums">
-                ฿{session.total.toLocaleString()}
+                ฿{awaiting.total.toLocaleString()}
               </div>
 
               <div className="bg-white rounded-3xl p-4 shadow-xl w-[min(80vw,26rem)] [&_svg]:block [&_svg]:w-full [&_svg]:h-auto">
                 <QRCodeSVG
-                  value={generatePayload(session.promptPayId, { amount: session.total })}
+                  value={generatePayload(qrId, { amount: awaiting.total })}
                   size={420}
                   bgColor="#ffffff"
                   fgColor="#1a1a1a"
@@ -130,17 +139,17 @@ export default function DisplayPage() {
                   {th ? 'สแกนจ่ายด้วยแอปธนาคาร' : 'Scan with any banking app'}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {th ? 'PromptPay' : 'PromptPay'} · {session.promptPayId}
+                  PromptPay · {qrId}
                 </p>
               </div>
 
-              {session.items.length > 0 && (
+              {awaiting.items.length > 0 && (
                 <p className="text-xs text-muted-foreground max-w-sm truncate">
-                  {session.items.map((i) => `${i.name} ×${i.quantity}`).join(' · ')}
+                  {awaiting.items.map((i) => `${i.name} ×${i.quantity}`).join(' · ')}
                 </p>
               )}
             </motion.div>
-          ) : showingPaid && session ? (
+          ) : justPaid ? (
             <motion.div
               key="paid"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -152,7 +161,7 @@ export default function DisplayPage() {
               <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                 {th ? 'ชำระเงินเรียบร้อย' : 'Payment received'}
               </p>
-              <p className="text-4xl font-bold tabular-nums">฿{session.total.toLocaleString()}</p>
+              <p className="text-4xl font-bold tabular-nums">฿{justPaid.total.toLocaleString()}</p>
               <p className="text-sm text-muted-foreground">
                 {th ? 'ขอบคุณที่อุดหนุน 🧇' : 'Thank you! 🧇'}
               </p>
@@ -172,7 +181,7 @@ export default function DisplayPage() {
               <p className="text-sm text-muted-foreground max-w-xs">
                 {th
                   ? 'เปิดหน้านี้ค้างไว้ที่มือถือฝั่งลูกค้า QR จะขึ้นเองเมื่อพนักงานวางออเดอร์'
-                  : 'Leave this page open on the customer-facing phone — the QR appears as soon as an order is placed.'}
+                  : 'Leave this page open on the customer-facing phone — the QR appears as soon as a QR order is placed.'}
               </p>
             </motion.div>
           )}

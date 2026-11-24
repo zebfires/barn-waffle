@@ -39,16 +39,9 @@ export interface Order {
   cashReceived?: number;
   /** Missing on older orders — treated as paid. */
   status?: OrderStatus;
-}
-
-/** Drives the customer-facing QR display (`payments/current`). */
-export interface PaymentSession {
-  orderId: string;
-  total: number;
-  items: OrderItem[];
-  promptPayId: string;
-  status: 'awaiting' | 'paid';
-  createdAt: string;
+  /** Snapshot of the staff PromptPay ID at order time, for the customer display. */
+  promptPayId?: string;
+  /** When staff confirmed the money arrived (drives the display's paid screen). */
   paidAt?: string;
 }
 
